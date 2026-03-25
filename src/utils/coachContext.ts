@@ -28,6 +28,15 @@ export interface SleepLog {
   cause: string;
 }
 
+export interface MoodLogEntry {
+  section: string;
+  sectionName: string;
+  timestamp: string;
+  energy: number;
+  mood: number;
+  cause: string;
+}
+
 export interface MoodLog {
   date: string;
   energy: number | null;
@@ -122,6 +131,62 @@ export function getComplianceSnapshot(): {
   specialists: ComplianceStream | null;
   field: ComplianceStream | null;
 } {
+  // Check mood logging compliance - today and last 7 days
+  let moodCompliance: ComplianceStream | null = null;
+  const today = new Date();
+  const todayYyyy = today.getFullYear();
+  const todayMm = String(today.getMonth() + 1).padStart(2, '0');
+  const todayDd = String(today.getDate()).padStart(2, '0');
+  const todayKey = `${todayYyyy}-${todayMm}-${todayDd}`;
+  const todayMoodKey = `${STORAGE_KEYS.MOOD_LOG}_${todayKey}`;
+  
+  // Check today's section count
+  let todaySections = 0;
+  const todayRaw = localStorage.getItem(todayMoodKey);
+  if (todayRaw) {
+    try {
+      const todayEntries = JSON.parse(todayRaw) as MoodLogEntry[];
+      todaySections = todayEntries.length;
+    } catch {
+      todaySections = 0;
+    }
+  }
+  
+  // Check last 7 days for days with 2+ sections
+  let daysWithMultipleSections = 0;
+  for (let i = 0; i < 7; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - i);
+    const yyyy = checkDate.getFullYear();
+    const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(checkDate.getDate()).padStart(2, '0');
+    const dayKey = `${yyyy}-${mm}-${dd}`;
+    const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
+    
+    const raw = localStorage.getItem(moodKey);
+    if (raw) {
+      try {
+        const entries = JSON.parse(raw) as MoodLogEntry[];
+        if (entries.length >= 2) {
+          daysWithMultipleSections++;
+        }
+      } catch {
+        // Skip invalid entries
+      }
+    }
+  }
+  
+  // Green: 3+ sections today OR 5+ days with 2+ sections
+  // Amber: 1-2 sections today OR 3-4 days with 2+ sections
+  // Red: 0 sections today AND <3 days with 2+ sections
+  if (todaySections >= 3 || daysWithMultipleSections >= 5) {
+    moodCompliance = { name: 'Mood Logging', status: 'green', value: `${todaySections} today, ${daysWithMultipleSections}/7 days`, threshold: '3 sections today or 5+ days' };
+  } else if (todaySections >= 1 || daysWithMultipleSections >= 3) {
+    moodCompliance = { name: 'Mood Logging', status: 'amber', value: `${todaySections} today, ${daysWithMultipleSections}/7 days`, threshold: '3 sections today or 5+ days' };
+  } else {
+    moodCompliance = { name: 'Mood Logging', status: 'red', value: `${todaySections} today, ${daysWithMultipleSections}/7 days`, threshold: '3 sections today or 5+ days' };
+  }
+
   return {
     // Will check: Daily completion rate from grnd_checklist_YYYY-MM-DD
     checklist: null,
@@ -129,8 +194,8 @@ export function getComplianceSnapshot(): {
     // Will check: Sleep duration, quality, consistency from grnd_sleep_log
     sleep: null,
 
-    // Will check: Energy/mood trends, negative cause patterns from grnd_mood_log
-    mood: null,
+    // Checks: Last 7 days of mood logging - green if 6+, amber if 4-5, red if <4
+    mood: moodCompliance,
 
     // Will check: Session frequency, injury status, effort consistency from grnd_gym_log
     gym: null,
@@ -166,6 +231,30 @@ export function getCoachContext(): {
 } {
   const compliance = getComplianceSnapshot();
 
+  // Load last 7 days of mood logs (array structure)
+  const moodLogs: Array<{ date: string; entries: MoodLogEntry[] }> = [];
+  const today = new Date();
+  
+  for (let i = 0; i < 7; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - i);
+    const yyyy = checkDate.getFullYear();
+    const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(checkDate.getDate()).padStart(2, '0');
+    const dayKey = `${yyyy}-${mm}-${dd}`;
+    const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
+    
+    const raw = localStorage.getItem(moodKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as MoodLogEntry[];
+        moodLogs.push({ date: dayKey, entries: parsed });
+      } catch {
+        // Skip invalid entries
+      }
+    }
+  }
+
   return {
     compliance,
 
@@ -176,7 +265,7 @@ export function getCoachContext(): {
     sleep: null,
 
     // Populated by: Today tab - mood/energy logging (Phase 3b Step 2)
-    mood: null,
+    mood: moodLogs,
 
     // Populated by: Gym tab - session logs, exercises, injuries
     gym: null,
