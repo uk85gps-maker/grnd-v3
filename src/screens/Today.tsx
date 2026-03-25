@@ -122,6 +122,7 @@ export default function Today() {
     consequence: '',
   });
   const [deleteConfirm, setDeleteConfirm] = useState<{ sectionId: string; itemId: string } | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(completionKey);
@@ -206,7 +207,10 @@ export default function Today() {
   };
 
   const handleAddItem = (sectionId: string) => {
-    if (!newItem.name || !newItem.time || !newItem.purpose || !newItem.consequence) return;
+    if (!newItem.name || !newItem.time || !newItem.purpose || !newItem.consequence) {
+      setShowValidation(true);
+      return;
+    }
 
     const item: ChecklistItem = {
       id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -224,6 +228,7 @@ export default function Today() {
     );
 
     setNewItem({ name: '', time: '', layer: 'Foundation', purpose: '', consequence: '' });
+    setShowValidation(false);
     setAddItemSection(null);
   };
 
@@ -607,66 +612,79 @@ export default function Today() {
 
       {/* Add Item Modal */}
       {addItemSection ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setAddItemSection(null)}>
-          <div className="w-full max-w-md rounded-t-brand bg-card p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 text-lg font-bold text-text-primary">Add Item</div>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Item name"
-                value={newItem.name}
-                onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
-                className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
-              />
-              <input
-                type="time"
-                value={newItem.time}
-                onChange={(e) => setNewItem((p) => ({ ...p, time: e.target.value }))}
-                className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
-              />
-              <select
-                value={newItem.layer}
-                onChange={(e) => setNewItem((p) => ({ ...p, layer: e.target.value }))}
-                className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
-              >
-                <option value="Foundation">Foundation</option>
-                <option value="Sleep">Sleep</option>
-                <option value="Medical">Medical</option>
-                <option value="Physical Product">Physical Product</option>
-                <option value="Presence">Presence</option>
-                <option value="Inner Game">Inner Game</option>
-                <option value="Income">Income</option>
-                <option value="Reputation">Reputation</option>
-              </select>
-              <input
-                type="text"
-                placeholder="Why does this item exist?"
-                value={newItem.purpose}
-                onChange={(e) => setNewItem((p) => ({ ...p, purpose: e.target.value }))}
-                className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
-              />
-              <input
-                type="text"
-                placeholder="What breaks if this is skipped?"
-                value={newItem.consequence}
-                onChange={(e) => setNewItem((p) => ({ ...p, consequence: e.target.value }))}
-                className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
-              />
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => { setAddItemSection(null); setShowValidation(false); }}>
+          <div className="w-full max-w-md rounded-t-brand bg-card max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 pb-4">
+              <div className="mb-4 text-lg font-bold text-text-primary">Add Item</div>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6">
+              <div className="space-y-4 pb-4">
+                <input
+                  type="text"
+                  placeholder="Item name"
+                  value={newItem.name}
+                  onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                    showValidation && !newItem.name ? 'border-2 border-red-500' : ''
+                  }`}
+                />
+                <input
+                  type="time"
+                  value={newItem.time}
+                  onChange={(e) => setNewItem((p) => ({ ...p, time: e.target.value }))}
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                    showValidation && !newItem.time ? 'border-2 border-red-500' : ''
+                  }`}
+                />
+                <select
+                  value={newItem.layer}
+                  onChange={(e) => setNewItem((p) => ({ ...p, layer: e.target.value }))}
+                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
+                >
+                  <option value="Foundation">Foundation</option>
+                  <option value="Sleep">Sleep</option>
+                  <option value="Medical">Medical</option>
+                  <option value="Physical Product">Physical Product</option>
+                  <option value="Presence">Presence</option>
+                  <option value="Inner Game">Inner Game</option>
+                  <option value="Income">Income</option>
+                  <option value="Reputation">Reputation</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Why does this item exist?"
+                  value={newItem.purpose}
+                  onChange={(e) => setNewItem((p) => ({ ...p, purpose: e.target.value }))}
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                    showValidation && !newItem.purpose ? 'border-2 border-red-500' : ''
+                  }`}
+                />
+                <input
+                  type="text"
+                  placeholder="What breaks if this is skipped?"
+                  value={newItem.consequence}
+                  onChange={(e) => setNewItem((p) => ({ ...p, consequence: e.target.value }))}
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                    showValidation && !newItem.consequence ? 'border-2 border-red-500' : ''
+                  }`}
+                />
+              </div>
+            </div>
+            <div className="p-6 pt-4 space-y-3">
               <button
                 type="button"
-                onClick={() => setAddItemSection(null)}
-                className="w-full text-center text-sm text-text-secondary"
+                onClick={() => { setAddItemSection(null); setShowValidation(false); }}
+                className="w-full text-center text-sm text-text-secondary min-h-[44px]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleAddItem(addItemSection)}
-                disabled={!canSaveNewItem}
                 className={
                   canSaveNewItem
-                    ? 'min-h-[44px] w-full rounded-brand bg-primary text-background font-bold'
-                    : 'min-h-[44px] w-full rounded-brand bg-background text-text-secondary font-bold'
+                    ? 'min-h-[44px] w-full rounded-brand bg-primary text-background font-bold cursor-pointer'
+                    : 'min-h-[44px] w-full rounded-brand bg-gray-700 text-gray-500 font-bold cursor-not-allowed opacity-50'
                 }
               >
                 Save
