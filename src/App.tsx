@@ -1,8 +1,9 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import Today from '@/screens/Today'
 
 function Screen({ title }: { title: string }) {
   return (
-    <div className="flex flex-1 items-center justify-center">
+    <div className="flex flex-1 items-center justify-center pb-20">
       <div className="text-2xl font-semibold text-text-primary">{title}</div>
     </div>
   )
@@ -101,16 +102,21 @@ function BottomNav() {
 }
 
 function App() {
+  const location = useLocation()
+  const showShellHeader = location.pathname !== '/today'
+
   return (
     <div className="min-h-screen bg-background text-text-primary">
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-5 pb-20">
-        <header className="mb-4">
-          <div className="text-lg font-bold tracking-wide text-primary">GRND</div>
-        </header>
+        {showShellHeader ? (
+          <header className="mb-4">
+            <div className="text-lg font-bold tracking-wide text-primary">GRND</div>
+          </header>
+        ) : null}
 
         <Routes>
           <Route path="/" element={<Navigate to="/today" replace />} />
-          <Route path="/today" element={<Screen title="Today" />} />
+          <Route path="/today" element={<Today />} />
           <Route path="/coach" element={<Screen title="Coach" />} />
           <Route path="/gym" element={<Screen title="Gym" />} />
           <Route path="/review" element={<Screen title="Review" />} />
