@@ -70,7 +70,7 @@ function BottomNav() {
     `${linkBase} ${isActive ? 'text-primary' : 'text-text-secondary'}`
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="mx-auto flex max-w-md rounded-t-[12px] px-2">
         <NavLink to="/today" className={linkClassName}>
           <TabIcon name="today" />
