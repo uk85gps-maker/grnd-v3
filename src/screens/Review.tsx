@@ -362,7 +362,7 @@ export default function Review() {
                 type="button"
                 onClick={() => setShowPyramidDetail(layer)}
                 className={`w-full rounded-brand ${getLayerColor(layer.status)} px-4 py-2 text-center text-xs font-semibold text-background`}
-                style={{ width: `${40 + layer.id * 6}%`, margin: '0 auto' }}
+                style={{ width: `${100 - (layer.id - 1) * 6}%`, margin: '0 auto' }}
               >
                 {layer.name}
               </button>
