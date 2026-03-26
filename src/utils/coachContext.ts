@@ -1,6 +1,8 @@
 // Phase 3b - Coach Context Layer
 // Scaffolds data structures and context functions for Coach integration
 
+import { detectPhaseMode } from './phaseMode';
+
 export const STORAGE_KEYS = {
   CHECKLIST_STRUCTURE: 'grnd_checklist_structure',
   CHECKLIST_COMPLETION: 'grnd_checklist',
@@ -463,8 +465,7 @@ export function getCoachContext(): {
         }
       }
       
-      // Import phase detection
-      const { detectPhaseMode } = require('./phaseMode');
+      // Phase detection
       return detectPhaseMode(sleepCompliant, foodLogged, simranCompleted, hygieneCompleted);
     })(),
   };

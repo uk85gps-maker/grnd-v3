@@ -3,20 +3,15 @@ import { getActiveModes } from './coachModes';
 import { formatPatternMemoryForPrompt } from './patternMemory';
 import { getCoachContext, getComplianceSnapshot } from './coachContext';
 
-const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
-const MAX_TOKENS = 1000;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 export async function sendMessageToCoach(
   userMessage: string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
-  console.log('API Key check:', import.meta.env.VITE_ANTHROPIC_API_KEY ? 'FOUND' : 'MISSING');
-  console.log('API Key value:', API_KEY);
-  
-  if (!API_KEY) {
-    throw new Error('API key not configured. Please add VITE_ANTHROPIC_API_KEY to your .env file.');
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('Supabase configuration missing. Please check your .env file.');
   }
 
   const systemPrompt = buildSystemPrompt();
@@ -27,16 +22,14 @@ export async function sendMessageToCoach(
   ];
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'apikey': SUPABASE_KEY,
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
         system: systemPrompt,
         messages,
       }),
