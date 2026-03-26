@@ -2,6 +2,7 @@ import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Today from '@/screens/Today'
 import Gym from '@/screens/Gym'
 import Review from '@/screens/Review'
+import Coach from '@/screens/Coach'
 
 function Screen({ title }: { title: string }) {
   return (
@@ -119,7 +120,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/today" replace />} />
           <Route path="/today" element={<Today />} />
-          <Route path="/coach" element={<Screen title="Coach" />} />
+          <Route path="/coach" element={<Coach />} />
           <Route path="/gym" element={<Gym />} />
           <Route path="/review" element={<Review />} />
           <Route path="/field" element={<Screen title="Field" />} />

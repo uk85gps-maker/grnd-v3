@@ -277,6 +277,12 @@ export function getCoachContext(): {
   field: any;
   stage: any;
   priorities: PrioritySignal[];
+  phaseMode: {
+    active: boolean;
+    dayCount: number;
+    nonNegotiablesMissed: string[];
+    lastCheckin: string;
+  };
 } {
   const compliance = getComplianceSnapshot();
 
@@ -391,5 +397,75 @@ export function getCoachContext(): {
 
     // Populated by: Cross-tab analysis - priority signals from all streams
     priorities: [],
+
+    // Phase mode detection
+    phaseMode: (() => {
+      const today = new Date();
+      const todayYyyy = today.getFullYear();
+      const todayMm = String(today.getMonth() + 1).padStart(2, '0');
+      const todayDd = String(today.getDate()).padStart(2, '0');
+      const todayKey = `${todayYyyy}-${todayMm}-${todayDd}`;
+      
+      // Check sleep compliance - in bed by 8:30pm
+      const sleepKey = `${STORAGE_KEYS.SLEEP_LOG}_${todayKey}`;
+      const sleepRaw = localStorage.getItem(sleepKey);
+      let sleepCompliant = false;
+      if (sleepRaw) {
+        try {
+          const sleepData = JSON.parse(sleepRaw);
+          const bedTime = sleepData.bedTime || '';
+          const [hours, minutes] = bedTime.split(':').map(Number);
+          if (hours < 20 || (hours === 20 && minutes <= 30)) {
+            sleepCompliant = true;
+          }
+        } catch {
+          // Sleep not logged
+        }
+      }
+      
+      // Check food logged - any macro entry
+      const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${todayKey}`;
+      const macroRaw = localStorage.getItem(macroKey);
+      let foodLogged = false;
+      if (macroRaw) {
+        try {
+          const entries = JSON.parse(macroRaw) as MacroLogEntry[];
+          foodLogged = entries.length > 0;
+        } catch {
+          // No food logged
+        }
+      }
+      
+      // Check simran completed
+      const checklistKey = `${STORAGE_KEYS.CHECKLIST_COMPLETION}_${todayKey}`;
+      const checklistRaw = localStorage.getItem(checklistKey);
+      let simranCompleted = false;
+      if (checklistRaw) {
+        try {
+          const completion = JSON.parse(checklistRaw);
+          const completedIds = completion.completedIds || [];
+          simranCompleted = completedIds.includes('simran-1830');
+        } catch {
+          // Checklist not completed
+        }
+      }
+      
+      // Check hygiene - shower or skincare
+      let hygieneCompleted = false;
+      if (checklistRaw) {
+        try {
+          const completion = JSON.parse(checklistRaw);
+          const completedIds = completion.completedIds || [];
+          const hygieneItems = ['shower-am', 'shower-pm-1810', 'skincare-am', 'skincare-pm-2000'];
+          hygieneCompleted = hygieneItems.some(id => completedIds.includes(id));
+        } catch {
+          // Hygiene not completed
+        }
+      }
+      
+      // Import phase detection
+      const { detectPhaseMode } = require('./phaseMode');
+      return detectPhaseMode(sleepCompliant, foodLogged, simranCompleted, hygieneCompleted);
+    })(),
   };
 }
