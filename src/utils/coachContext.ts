@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   GYM_LOG: 'grnd_gym_log',
   BODY_LOG: 'grnd_body_log',
   MACRO_LOG: 'grnd_macro_log',
+  MEAL_PLAN_DEFAULTS: 'grnd_meal_plan_defaults',
+  MACRO_TARGETS: 'grnd_macro_targets',
   BLOOD_RESULTS: 'grnd_blood_results',
   SPECIALIST_ACTIONS: 'grnd_specialist_actions',
   FIELD_LOG: 'grnd_field_log',
@@ -64,6 +66,19 @@ export interface BodyLog {
   waist: number | null;
   bodyFat: number | null;
   contextNote: string;
+}
+
+export interface MacroLogEntry {
+  id: string;
+  name: string;
+  time: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  source: 'default' | 'usda' | 'manual';
+  confirmed: boolean;
+  purpose: string;
 }
 
 export interface MacroLog {
@@ -203,8 +218,42 @@ export function getComplianceSnapshot(): {
     // Will check: Weight trend, body fat trend, waist measurement from grnd_body_log
     body: null,
 
-    // Will check: Protein target hit rate, calorie deviation patterns from grnd_macro_log
-    macros: null,
+    // Checks: Last 7 days of macro logging - green if 6+ days with 3+ meals confirmed, amber if 4-5 days, red if <4 days
+    macros: (() => {
+      let daysWithLogging = 0;
+      const today = new Date();
+      
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
+        
+        const raw = localStorage.getItem(macroKey);
+        if (raw) {
+          try {
+            const entries = JSON.parse(raw) as MacroLogEntry[];
+            const confirmedCount = entries.filter((e) => e.confirmed).length;
+            if (confirmedCount >= 3) {
+              daysWithLogging++;
+            }
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+      
+      if (daysWithLogging >= 6) {
+        return { name: 'Macro Logging', status: 'green', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
+      } else if (daysWithLogging >= 4) {
+        return { name: 'Macro Logging', status: 'amber', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
+      } else {
+        return { name: 'Macro Logging', status: 'red', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
+      }
+    })(),
 
     // Will check: Pending specialist actions, overdue bookings from grnd_specialist_actions
     specialists: null,
@@ -274,7 +323,62 @@ export function getCoachContext(): {
     body: null,
 
     // Populated by: Today tab - macro tracking (Phase 3b Step 4)
-    macros: null,
+    macros: (() => {
+      const macroLogs: Array<{ date: string; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
+      const today = new Date();
+      
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
+        
+        const raw = localStorage.getItem(macroKey);
+        if (raw) {
+          try {
+            const entries = JSON.parse(raw) as MacroLogEntry[];
+            const confirmed = entries.filter((e) => e.confirmed);
+            
+            const totals = confirmed.reduce(
+              (acc, e) => ({
+                calories: acc.calories + e.calories,
+                protein: acc.protein + e.protein,
+                carbs: acc.carbs + e.carbs,
+                fat: acc.fat + e.fat,
+              }),
+              { calories: 0, protein: 0, carbs: 0, fat: 0 }
+            );
+            
+            const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
+            let targets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
+            if (targetsRaw) {
+              try {
+                targets = JSON.parse(targetsRaw);
+              } catch {
+                // Use defaults
+              }
+            }
+            
+            let deviation: string | undefined;
+            const calDiff = ((totals.calories - targets.calories) / targets.calories) * 100;
+            if (Math.abs(calDiff) > 20) {
+              deviation = calDiff > 0 ? 'Over target by >20%' : 'Under target by >20%';
+            } else if (Math.abs(calDiff) > 10) {
+              deviation = calDiff > 0 ? 'Over target by 10-20%' : 'Under target by 10-20%';
+            }
+            
+            macroLogs.push({ date: dayKey, entries, totals, targets, deviation });
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+      
+      return macroLogs;
+    })(),
 
     // Populated by: Review tab - specialist actions and outcomes
     specialists: null,

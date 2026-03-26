@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { formatHeaderDate, getGrndDayKey, previousDayKey } from '@/utils/dayKey';
 import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checklistTypes';
 import { DEFAULT_CHECKLIST } from '@/utils/defaultChecklist';
-import { STORAGE_KEYS, MoodLogEntry } from '@/utils/coachContext';
+import { STORAGE_KEYS, MoodLogEntry, MacroLogEntry } from '@/utils/coachContext';
+import { getMealPlanDefaults, getMacroTargets, saveMealPlanDefaults, saveMacroTargets, MealPlanItem, MacroTargets } from '@/utils/mealPlan';
 
 type SleepLog = {
   bedTime: string;
@@ -139,6 +140,25 @@ export default function Today() {
   const [newCause, setNewCause] = useState('');
   const [showAddCause, setShowAddCause] = useState<Record<string, boolean>>({});
 
+  // Macro tracking state
+  const [macroEntries, setMacroEntries] = useState<MacroLogEntry[]>([]);
+  const [mealPlanDefaults, setMealPlanDefaults] = useState<MealPlanItem[]>([]);
+  const [macroTargets, setMacroTargets] = useState<MacroTargets>({ calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 });
+  const [editMealPlanModal, setEditMealPlanModal] = useState(false);
+  const [usdaSearchModal, setUsdaSearchModal] = useState(false);
+  const [editingMeal, setEditingMeal] = useState<MealPlanItem | null>(null);
+  const [newMeal, setNewMeal] = useState<Partial<MealPlanItem>>({});
+  const [usdaSearchQuery, setUsdaSearchQuery] = useState('');
+  const [usdaResults, setUsdaResults] = useState<any[]>([]);
+  const [usdaLoading, setUsdaLoading] = useState(false);
+  const [usdaError, setUsdaError] = useState('');
+  const [selectedUsdaFood, setSelectedUsdaFood] = useState<any>(null);
+  const [usdaQuantity, setUsdaQuantity] = useState('');
+  const [manualMealEntry, setManualMealEntry] = useState<Partial<MacroLogEntry>>({});
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [editTargetsMode, setEditTargetsMode] = useState(false);
+  const [tempTargets, setTempTargets] = useState<MacroTargets>({ calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 });
+
   // Edit mode state
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<ChecklistItem | null>(null);
@@ -200,7 +220,26 @@ export default function Today() {
         setMoodEntries([]);
       }
     }
-  }, [completionKey, sleepKey, moodKey]);
+
+    // Load macro data
+    const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
+    const rawMacro = localStorage.getItem(macroKey);
+    if (rawMacro) {
+      try {
+        const parsed = JSON.parse(rawMacro) as MacroLogEntry[];
+        setMacroEntries(parsed);
+      } catch {
+        setMacroEntries([]);
+      }
+    }
+
+    // Load meal plan defaults and macro targets
+    const defaults = getMealPlanDefaults();
+    setMealPlanDefaults(defaults);
+    const targets = getMacroTargets();
+    setMacroTargets(targets);
+    setTempTargets(targets);
+  }, [completionKey, sleepKey, moodKey, dayKey]);
 
   useEffect(() => {
     const completion: DailyCompletion = { completedIds };
@@ -231,7 +270,70 @@ export default function Today() {
     }
   }, [dayKey]);
 
+  // Macro tracking handlers - defined before handleToggleItem to avoid reference errors
+  const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
+
+  const handleToggleMealConfirm = (mealId: string) => {
+    const existing = macroEntries.find((e) => e.id === mealId);
+    let updated: MacroLogEntry[];
+
+    if (existing) {
+      // Toggle confirmation
+      updated = macroEntries.map((e) => (e.id === mealId ? { ...e, confirmed: !e.confirmed } : e));
+    } else {
+      // Add from defaults
+      const defaultMeal = mealPlanDefaults.find((m) => m.id === mealId);
+      if (!defaultMeal) return;
+
+      const newEntry: MacroLogEntry = {
+        id: defaultMeal.id,
+        name: defaultMeal.name,
+        time: defaultMeal.time,
+        calories: defaultMeal.calories,
+        protein: defaultMeal.protein,
+        carbs: defaultMeal.carbs,
+        fat: defaultMeal.fat,
+        source: 'default',
+        confirmed: true,
+        purpose: defaultMeal.purpose,
+      };
+      updated = [...macroEntries, newEntry];
+    }
+
+    setMacroEntries(updated);
+    localStorage.setItem(macroKey, JSON.stringify(updated));
+  };
+
   const handleToggleItem = (id: string) => {
+    const isCurrentlyCompleted = completedIds.includes(id);
+    
+    // Find the item to get its name
+    const item = allItems.find((i) => i.id === id);
+    
+    if (item && macroEntries && macroEntries.length > 0) {
+      // Try to find a matching meal by name (case insensitive, trimmed)
+      const itemName = item.name.trim().toLowerCase();
+      const matchingMeal = macroEntries.find(
+        (meal) => meal.name.trim().toLowerCase() === itemName
+      );
+      
+      if (matchingMeal) {
+        // Auto-confirm or unconfirm the matching meal
+        if (!isCurrentlyCompleted) {
+          // Ticking the item - confirm the meal if not already confirmed
+          if (!matchingMeal.confirmed) {
+            handleToggleMealConfirm(matchingMeal.id);
+          }
+        } else {
+          // Unticking the item - unconfirm the meal if currently confirmed
+          if (matchingMeal.confirmed) {
+            handleToggleMealConfirm(matchingMeal.id);
+          }
+        }
+      }
+    }
+    
+    // Update checklist completion as normal
     setCompletedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
@@ -323,6 +425,192 @@ export default function Today() {
 
   const getSectionMoodState = (sectionId: string): SectionMoodState => {
     return sectionMoodStates[sectionId] || { energy: null, mood: null, cause: '' };
+  };
+
+  // Additional macro handlers
+
+  const handleSearchUsda = async () => {
+    if (!usdaSearchQuery.trim()) return;
+
+    setUsdaLoading(true);
+    setUsdaError('');
+    setUsdaResults([]);
+
+    try {
+      const response = await fetch(
+        `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(usdaSearchQuery)}&api_key=DEMO_KEY`
+      );
+
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await response.json();
+      const foods = data.foods || [];
+
+      if (foods.length === 0) {
+        setUsdaError('No results found. Enter manually.');
+        setShowManualEntry(true);
+      } else {
+        setUsdaResults(foods);
+      }
+    } catch (error) {
+      setUsdaError('Search unavailable offline. Enter manually.');
+      setShowManualEntry(true);
+    } finally {
+      setUsdaLoading(false);
+    }
+  };
+
+  const handleSelectUsdaFood = (food: any) => {
+    setSelectedUsdaFood(food);
+  };
+
+  const handleConfirmUsdaFood = () => {
+    if (!selectedUsdaFood || !usdaQuantity) return;
+
+    const quantity = parseFloat(usdaQuantity);
+    if (isNaN(quantity) || quantity <= 0) return;
+
+    // Parse nutrients safely
+    const nutrients = selectedUsdaFood.foodNutrients || [];
+    const getNutrient = (id: number) => {
+      const n = nutrients.find((n: any) => n.nutrientId === id);
+      return n?.value || 0;
+    };
+
+    const caloriesPer100g = getNutrient(1008); // Energy
+    const proteinPer100g = getNutrient(1003); // Protein
+    const carbsPer100g = getNutrient(1005); // Carbs
+    const fatPer100g = getNutrient(1004); // Fat
+
+    const factor = quantity / 100;
+
+    const newEntry: MacroLogEntry = {
+      id: `usda-${Date.now()}`,
+      name: selectedUsdaFood.description || 'Custom food',
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      calories: Math.round(caloriesPer100g * factor),
+      protein: Math.round(proteinPer100g * factor * 10) / 10,
+      carbs: Math.round(carbsPer100g * factor * 10) / 10,
+      fat: Math.round(fatPer100g * factor * 10) / 10,
+      source: 'usda',
+      confirmed: true,
+      purpose: 'Custom meal',
+    };
+
+    const updated = [...macroEntries, newEntry];
+    setMacroEntries(updated);
+    localStorage.setItem(macroKey, JSON.stringify(updated));
+
+    // Reset modal
+    setUsdaSearchModal(false);
+    setUsdaSearchQuery('');
+    setUsdaResults([]);
+    setSelectedUsdaFood(null);
+    setUsdaQuantity('');
+    setShowManualEntry(false);
+  };
+
+  const handleConfirmManualMeal = () => {
+    if (
+      !manualMealEntry.name ||
+      manualMealEntry.calories === undefined ||
+      manualMealEntry.protein === undefined ||
+      manualMealEntry.carbs === undefined ||
+      manualMealEntry.fat === undefined
+    ) {
+      return;
+    }
+
+    const newEntry: MacroLogEntry = {
+      id: `manual-${Date.now()}`,
+      name: manualMealEntry.name,
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      calories: manualMealEntry.calories,
+      protein: manualMealEntry.protein,
+      carbs: manualMealEntry.carbs,
+      fat: manualMealEntry.fat,
+      source: 'manual',
+      confirmed: true,
+      purpose: 'Custom meal',
+    };
+
+    const updated = [...macroEntries, newEntry];
+    setMacroEntries(updated);
+    localStorage.setItem(macroKey, JSON.stringify(updated));
+
+    // Reset modal
+    setUsdaSearchModal(false);
+    setManualMealEntry({});
+    setShowManualEntry(false);
+  };
+
+  const handleSaveMealPlan = () => {
+    saveMealPlanDefaults(mealPlanDefaults);
+    setEditMealPlanModal(false);
+    setEditingMeal(null);
+    setNewMeal({});
+  };
+
+  const handleAddMealToPlan = () => {
+    if (
+      !newMeal.name ||
+      !newMeal.time ||
+      newMeal.calories === undefined ||
+      newMeal.protein === undefined ||
+      newMeal.carbs === undefined ||
+      newMeal.fat === undefined ||
+      !newMeal.purpose
+    ) {
+      return;
+    }
+
+    const meal: MealPlanItem = {
+      id: `meal-${Date.now()}`,
+      name: newMeal.name,
+      time: newMeal.time,
+      calories: newMeal.calories,
+      protein: newMeal.protein,
+      carbs: newMeal.carbs,
+      fat: newMeal.fat,
+      purpose: newMeal.purpose,
+    };
+
+    setMealPlanDefaults([...mealPlanDefaults, meal]);
+    setNewMeal({});
+  };
+
+  const handleDeleteMealFromPlan = (mealId: string) => {
+    setMealPlanDefaults(mealPlanDefaults.filter((m) => m.id !== mealId));
+  };
+
+  const handleSaveTargets = () => {
+    saveMacroTargets(tempTargets);
+    setMacroTargets(tempTargets);
+    setEditTargetsMode(false);
+  };
+
+  const confirmedMacros = useMemo(() => {
+    const confirmed = macroEntries.filter((e) => e.confirmed);
+    return confirmed.reduce(
+      (acc, e) => ({
+        calories: acc.calories + e.calories,
+        protein: acc.protein + e.protein,
+        carbs: acc.carbs + e.carbs,
+        fat: acc.fat + e.fat,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  }, [macroEntries]);
+
+  const getMacroColor = (actual: number, target: number) => {
+    const diff = ((actual - target) / target) * 100;
+    if (actual === 0) return 'text-text-secondary'; // No data
+    if (diff > 0) return 'text-red-500'; // Over target
+    if (diff < -20) return 'text-red-500'; // More than 20% under
+    if (diff < -10) return 'text-amber-500'; // 10-20% under
+    return 'text-primary'; // Within 10%
   };
 
   const handleDeleteItem = (sectionId: string, itemId: string) => {
@@ -508,6 +796,129 @@ export default function Today() {
             </button>
           </div>
         )}
+      </Card>
+
+      {/* Macro Summary Card */}
+      <Card>
+        <div className="text-base font-bold text-text-primary">Macros</div>
+        
+        {/* Summary Row */}
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="rounded-brand bg-background p-2">
+            <div className="text-[10px] tracking-widest text-text-secondary">CALORIES</div>
+            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.calories, macroTargets.calories)}`}>
+              {confirmedMacros.calories} / {macroTargets.calories}
+            </div>
+          </div>
+          <div className="rounded-brand bg-background p-2">
+            <div className="text-[10px] tracking-widest text-text-secondary">PROTEIN</div>
+            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.protein, macroTargets.protein)}`}>
+              {confirmedMacros.protein}g / {macroTargets.protein}g
+            </div>
+          </div>
+          <div className="rounded-brand bg-background p-2">
+            <div className="text-[10px] tracking-widest text-text-secondary">CARBS</div>
+            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.carbs, macroTargets.carbs)}`}>
+              {confirmedMacros.carbs}g / {macroTargets.carbs}g
+            </div>
+          </div>
+          <div className="rounded-brand bg-background p-2">
+            <div className="text-[10px] tracking-widest text-text-secondary">FAT</div>
+            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.fat, macroTargets.fat)}`}>
+              {confirmedMacros.fat}g / {macroTargets.fat}g
+            </div>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        {macroEntries.filter((e) => e.confirmed).length === 0 && (
+          <div className="mt-3 text-center text-sm italic text-text-secondary">
+            Tap meals to confirm
+          </div>
+        )}
+
+        {/* Meal List */}
+        <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto">
+          {mealPlanDefaults.map((meal) => {
+            const entry = macroEntries.find((e) => e.id === meal.id);
+            const isConfirmed = entry?.confirmed || false;
+
+            return (
+              <button
+                key={meal.id}
+                type="button"
+                onClick={() => handleToggleMealConfirm(meal.id)}
+                className={
+                  isConfirmed
+                    ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
+                    : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className={isConfirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
+                      {meal.name}
+                    </div>
+                    <div className="mt-1 text-[10px] text-text-secondary">
+                      {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
+                    </div>
+                  </div>
+                  <div className={isConfirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
+                    {isConfirmed ? '✓' : '○'}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+
+          {/* Custom meals from USDA/manual */}
+          {macroEntries
+            .filter((e) => e.source !== 'default')
+            .map((meal) => (
+              <button
+                key={meal.id}
+                type="button"
+                onClick={() => handleToggleMealConfirm(meal.id)}
+                className={
+                  meal.confirmed
+                    ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
+                    : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className={meal.confirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
+                      {meal.name}
+                    </div>
+                    <div className="mt-1 text-[10px] text-text-secondary">
+                      {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g • {meal.source}
+                    </div>
+                  </div>
+                  <div className={meal.confirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
+                    {meal.confirmed ? '✓' : '○'}
+                  </div>
+                </div>
+              </button>
+            ))}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setEditMealPlanModal(true)}
+            className="flex-1 text-xs text-primary"
+          >
+            Edit meal plan
+          </button>
+          <button
+            type="button"
+            onClick={() => setUsdaSearchModal(true)}
+            className="flex-1 rounded-brand border border-primary px-3 py-2 text-xs font-semibold text-primary"
+          >
+            Log Custom Meal
+          </button>
+        </div>
       </Card>
 
       <div className="-mx-5 overflow-x-auto px-5">
@@ -1016,6 +1427,435 @@ export default function Today() {
                 className="min-h-[44px] flex-1 rounded-brand bg-red-500 text-white font-bold"
               >
                 Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Edit Meal Plan Modal */}
+      {editMealPlanModal ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setEditMealPlanModal(false)}>
+          <div className="w-full max-w-md rounded-t-brand bg-card max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 pb-4">
+              <div className="mb-4 text-lg font-bold text-text-primary">Edit Meal Plan</div>
+              
+              {/* Edit Targets Section */}
+              {editTargetsMode ? (
+                <div className="mb-4 space-y-3 rounded-brand bg-background p-3">
+                  <div className="text-sm font-semibold text-text-primary">Daily Targets</div>
+                  <input
+                    type="number"
+                    value={tempTargets.calories}
+                    onChange={(e) => setTempTargets({ ...tempTargets, calories: parseFloat(e.target.value) || 0 })}
+                    placeholder="Calories"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={tempTargets.protein}
+                    onChange={(e) => setTempTargets({ ...tempTargets, protein: parseFloat(e.target.value) || 0 })}
+                    placeholder="Protein (g)"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={tempTargets.carbs}
+                    onChange={(e) => setTempTargets({ ...tempTargets, carbs: parseFloat(e.target.value) || 0 })}
+                    placeholder="Carbs (g)"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={tempTargets.fat}
+                    onChange={(e) => setTempTargets({ ...tempTargets, fat: parseFloat(e.target.value) || 0 })}
+                    placeholder="Fat (g)"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveTargets}
+                    className="w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background"
+                  >
+                    Save Targets
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditTargetsMode(false)}
+                    className="w-full text-sm text-text-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditTargetsMode(true)}
+                  className="mb-4 w-full text-left text-xs text-primary"
+                >
+                  Edit daily targets
+                </button>
+              )}
+            </div>
+
+            {/* Scrollable meal list */}
+            <div className="flex-1 overflow-y-auto px-6">
+              <div className="space-y-2">
+                {mealPlanDefaults.map((meal) => (
+                  <div key={meal.id} className="rounded-brand bg-background p-3">
+                    {editingMeal?.id === meal.id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={editingMeal.name}
+                          onChange={(e) => setEditingMeal({ ...editingMeal, name: e.target.value })}
+                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        />
+                        <input
+                          type="time"
+                          value={editingMeal.time}
+                          onChange={(e) => setEditingMeal({ ...editingMeal, time: e.target.value })}
+                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            value={editingMeal.calories}
+                            onChange={(e) => setEditingMeal({ ...editingMeal, calories: parseFloat(e.target.value) || 0 })}
+                            placeholder="Cal"
+                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          />
+                          <input
+                            type="number"
+                            value={editingMeal.protein}
+                            onChange={(e) => setEditingMeal({ ...editingMeal, protein: parseFloat(e.target.value) || 0 })}
+                            placeholder="Protein"
+                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          />
+                          <input
+                            type="number"
+                            value={editingMeal.carbs}
+                            onChange={(e) => setEditingMeal({ ...editingMeal, carbs: parseFloat(e.target.value) || 0 })}
+                            placeholder="Carbs"
+                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          />
+                          <input
+                            type="number"
+                            value={editingMeal.fat}
+                            onChange={(e) => setEditingMeal({ ...editingMeal, fat: parseFloat(e.target.value) || 0 })}
+                            placeholder="Fat"
+                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={editingMeal.purpose}
+                          onChange={(e) => setEditingMeal({ ...editingMeal, purpose: e.target.value })}
+                          placeholder="Purpose"
+                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMealPlanDefaults(mealPlanDefaults.map((m) => (m.id === editingMeal.id ? editingMeal : m)));
+                              setEditingMeal(null);
+                            }}
+                            className="flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingMeal(null)}
+                            className="flex-1 text-xs text-text-secondary"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold text-text-primary">{meal.name}</div>
+                            <div className="mt-1 text-[10px] text-text-secondary">
+                              {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
+                            </div>
+                            <div className="mt-1 text-[10px] italic text-text-secondary">{meal.purpose}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingMeal(meal)}
+                              className="text-xs text-primary"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMealFromPlan(meal.id)}
+                              className="text-xs text-red-500"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add New Meal */}
+                <div className="rounded-brand bg-background p-3">
+                  <div className="mb-2 text-sm font-semibold text-text-primary">Add New Meal</div>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newMeal.name || ''}
+                      onChange={(e) => setNewMeal({ ...newMeal, name: e.target.value })}
+                      placeholder="Meal name"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="time"
+                      value={newMeal.time || ''}
+                      onChange={(e) => setNewMeal({ ...newMeal, time: e.target.value })}
+                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        value={newMeal.calories || ''}
+                        onChange={(e) => setNewMeal({ ...newMeal, calories: parseFloat(e.target.value) || 0 })}
+                        placeholder="Calories"
+                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      />
+                      <input
+                        type="number"
+                        value={newMeal.protein || ''}
+                        onChange={(e) => setNewMeal({ ...newMeal, protein: parseFloat(e.target.value) || 0 })}
+                        placeholder="Protein (g)"
+                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      />
+                      <input
+                        type="number"
+                        value={newMeal.carbs || ''}
+                        onChange={(e) => setNewMeal({ ...newMeal, carbs: parseFloat(e.target.value) || 0 })}
+                        placeholder="Carbs (g)"
+                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      />
+                      <input
+                        type="number"
+                        value={newMeal.fat || ''}
+                        onChange={(e) => setNewMeal({ ...newMeal, fat: parseFloat(e.target.value) || 0 })}
+                        placeholder="Fat (g)"
+                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={newMeal.purpose || ''}
+                      onChange={(e) => setNewMeal({ ...newMeal, purpose: e.target.value })}
+                      placeholder="Purpose"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddMealToPlan}
+                      disabled={!newMeal.name || !newMeal.time || newMeal.calories === undefined || newMeal.protein === undefined || newMeal.carbs === undefined || newMeal.fat === undefined || !newMeal.purpose}
+                      className={
+                        newMeal.name && newMeal.time && newMeal.calories !== undefined && newMeal.protein !== undefined && newMeal.carbs !== undefined && newMeal.fat !== undefined && newMeal.purpose
+                          ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                          : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                      }
+                    >
+                      Add Meal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fixed bottom buttons */}
+            <div className="border-t border-text-secondary/20 p-6 pt-4">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditMealPlanModal(false)}
+                  className="min-h-[44px] flex-1 rounded-brand bg-background text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMealPlan}
+                  className="min-h-[44px] flex-1 rounded-brand bg-primary text-background font-bold"
+                >
+                  Save Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* USDA Search Modal */}
+      {usdaSearchModal ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => { setUsdaSearchModal(false); setShowManualEntry(false); }}>
+          <div className="w-full max-w-md rounded-t-brand bg-card max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 pb-4">
+              <div className="mb-4 text-lg font-bold text-text-primary">Log Custom Meal</div>
+              
+              {!showManualEntry ? (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={usdaSearchQuery}
+                      onChange={(e) => setUsdaSearchQuery(e.target.value)}
+                      placeholder="Search food..."
+                      className="flex-1 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSearchUsda();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchUsda}
+                      disabled={usdaLoading}
+                      className="rounded-brand bg-primary px-4 py-2 text-sm font-semibold text-background"
+                    >
+                      {usdaLoading ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+
+                  {usdaError && (
+                    <div className="text-xs text-amber-500">{usdaError}</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6">
+              {!showManualEntry && usdaResults.length > 0 && !selectedUsdaFood ? (
+                <div className="space-y-2">
+                  {usdaResults.slice(0, 10).map((food: any, idx: number) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectUsdaFood(food)}
+                      className="w-full rounded-brand bg-background p-3 text-left"
+                    >
+                      <div className="text-sm text-text-primary">{food.description || 'Unknown food'}</div>
+                      <div className="mt-1 text-[10px] text-text-secondary">
+                        {food.foodNutrients?.find((n: any) => n.nutrientId === 1008)?.value || 0} cal per 100g
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {selectedUsdaFood && !showManualEntry ? (
+                <div className="space-y-3">
+                  <div className="rounded-brand bg-background p-3">
+                    <div className="text-sm font-semibold text-text-primary">{selectedUsdaFood.description}</div>
+                    <div className="mt-2 text-[10px] text-text-secondary">
+                      Per 100g: {selectedUsdaFood.foodNutrients?.find((n: any) => n.nutrientId === 1008)?.value || 0} cal
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    value={usdaQuantity}
+                    onChange={(e) => setUsdaQuantity(e.target.value)}
+                    placeholder="Quantity in grams"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirmUsdaFood}
+                    disabled={!usdaQuantity}
+                    className={
+                      usdaQuantity
+                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                    }
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUsdaFood(null)}
+                    className="w-full text-sm text-text-secondary"
+                  >
+                    Back to results
+                  </button>
+                </div>
+              ) : null}
+
+              {showManualEntry ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-text-secondary">Enter meal details manually:</div>
+                  <input
+                    type="text"
+                    value={manualMealEntry.name || ''}
+                    onChange={(e) => setManualMealEntry({ ...manualMealEntry, name: e.target.value })}
+                    placeholder="Meal name"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <input
+                    type="number"
+                    value={manualMealEntry.calories || ''}
+                    onChange={(e) => setManualMealEntry({ ...manualMealEntry, calories: parseFloat(e.target.value) || 0 })}
+                    placeholder="Calories"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="number"
+                      value={manualMealEntry.protein || ''}
+                      onChange={(e) => setManualMealEntry({ ...manualMealEntry, protein: parseFloat(e.target.value) || 0 })}
+                      placeholder="Protein (g)"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualMealEntry.carbs || ''}
+                      onChange={(e) => setManualMealEntry({ ...manualMealEntry, carbs: parseFloat(e.target.value) || 0 })}
+                      placeholder="Carbs (g)"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualMealEntry.fat || ''}
+                      onChange={(e) => setManualMealEntry({ ...manualMealEntry, fat: parseFloat(e.target.value) || 0 })}
+                      placeholder="Fat (g)"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmManualMeal}
+                    disabled={!manualMealEntry.name || manualMealEntry.calories === undefined || manualMealEntry.protein === undefined || manualMealEntry.carbs === undefined || manualMealEntry.fat === undefined}
+                    className={
+                      manualMealEntry.name && manualMealEntry.calories !== undefined && manualMealEntry.protein !== undefined && manualMealEntry.carbs !== undefined && manualMealEntry.fat !== undefined
+                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                    }
+                  >
+                    Add Meal
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border-t border-text-secondary/20 p-6 pt-4">
+              <button
+                type="button"
+                onClick={() => { setUsdaSearchModal(false); setShowManualEntry(false); setUsdaSearchQuery(''); setUsdaResults([]); setSelectedUsdaFood(null); }}
+                className="min-h-[44px] w-full rounded-brand bg-background text-text-primary"
+              >
+                Close
               </button>
             </div>
           </div>
