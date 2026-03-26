@@ -211,8 +211,9 @@ export default function Today() {
           
           // Only reset if we haven't reset this week yet
           if (!lastReset || new Date(lastReset) < currentWeekStart) {
-            // Filter out weekly item IDs
-            const weeklyItemIds = weeklyItems.map(item => item.id);
+            // Filter out weekly item IDs - get from sections directly
+            const weeklySection = sections.find(s => s.id === 'weekly-environment');
+            const weeklyItemIds = weeklySection?.items.map(item => item.id) || [];
             ids = ids.filter(id => !weeklyItemIds.includes(id));
             
             // Save the reset timestamp
