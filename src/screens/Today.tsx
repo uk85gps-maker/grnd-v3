@@ -280,7 +280,19 @@ export default function Today() {
   }, [completionKey, completedIds]);
 
   const dailySections = useMemo(() => sections.filter((s) => s.id !== 'weekly-environment'), [sections]);
-  const weeklySection = useMemo(() => sections.find((s) => s.id === 'weekly-environment'), [sections]);
+  const weeklySection = useMemo(() => {
+    const found = sections.find((s) => s.id === 'weekly-environment');
+    console.log('Weekly section lookup:', { found, sectionsCount: sections.length, sectionIds: sections.map(s => s.id) });
+    
+    // Fallback: if not found in sections, get from DEFAULT_CHECKLIST
+    if (!found) {
+      const defaultWeekly = DEFAULT_CHECKLIST.find((s) => s.id === 'weekly-environment');
+      console.log('Using DEFAULT_CHECKLIST fallback:', defaultWeekly);
+      return defaultWeekly;
+    }
+    
+    return found;
+  }, [sections]);
   
   const allItems = useMemo(() => dailySections.flatMap((s) => s.items), [dailySections]);
   const totalCount = allItems.length;
