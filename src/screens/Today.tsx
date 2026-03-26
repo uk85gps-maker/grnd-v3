@@ -173,6 +173,7 @@ export default function Today() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ sectionId: string; itemId: string } | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [weeklyExpanded, setWeeklyExpanded] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<{ sectionId: string; itemId: string } | null>(null);
 
   useEffect(() => {
     // Load causes library
@@ -679,6 +680,44 @@ export default function Today() {
     setDeleteConfirm(null);
   };
 
+  const handleDragStart = (sectionId: string, itemId: string) => {
+    setDraggedItem({ sectionId, itemId });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (targetSectionId: string, targetItemId: string) => {
+    if (!draggedItem) return;
+    
+    const { sectionId: sourceSectionId, itemId: sourceItemId } = draggedItem;
+    
+    if (sourceSectionId !== targetSectionId || sourceItemId === targetItemId) {
+      setDraggedItem(null);
+      return;
+    }
+
+    setSections((prev) => {
+      return prev.map((section) => {
+        if (section.id !== sourceSectionId) return section;
+
+        const items = [...section.items];
+        const sourceIndex = items.findIndex((i) => i.id === sourceItemId);
+        const targetIndex = items.findIndex((i) => i.id === targetItemId);
+
+        if (sourceIndex === -1 || targetIndex === -1) return section;
+
+        const [movedItem] = items.splice(sourceIndex, 1);
+        items.splice(targetIndex, 0, movedItem);
+
+        return { ...section, items };
+      });
+    });
+
+    setDraggedItem(null);
+  };
+
   const handleAddItem = (sectionId: string) => {
     const isWeeklySection = sectionId === 'weekly-environment';
     
@@ -1114,10 +1153,17 @@ export default function Today() {
                       {section.items.map((item) => {
                         const checked = completedIds.includes(item.id);
                         return (
-                          <div key={item.id} className="flex items-center gap-2">
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2"
+                            draggable={isEditing}
+                            onDragStart={() => handleDragStart(section.id, item.id)}
+                            onDragOver={handleDragOver}
+                            onDrop={() => handleDrop(section.id, item.id)}
+                          >
                             {isEditing ? (
                               <>
-                                <div className="text-text-secondary">☰</div>
+                                <div className="text-text-secondary cursor-move">☰</div>
                                 <button
                                   type="button"
                                   onClick={() => setDetailItem(item)}
@@ -1400,10 +1446,17 @@ export default function Today() {
                 const isEditing = editingSection === weeklySection.id;
 
                 return (
-                  <div key={item.id} className="flex items-center gap-2">
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2"
+                    draggable={isEditing}
+                    onDragStart={() => handleDragStart(weeklySection.id, item.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(weeklySection.id, item.id)}
+                  >
                     {isEditing ? (
                       <>
-                        <div className="text-text-secondary">☰</div>
+                        <div className="text-text-secondary cursor-move">☰</div>
                         <button
                           type="button"
                           onClick={() => setDetailItem(item)}
