@@ -6,6 +6,7 @@ export interface ChecklistItem {
   purpose: string;
   consequence: string;
   completed?: boolean;
+  type?: 'daily' | 'weekly';
 }
 
 export interface ChecklistSection {

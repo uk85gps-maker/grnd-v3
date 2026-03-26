@@ -172,6 +172,7 @@ export default function Today() {
   });
   const [deleteConfirm, setDeleteConfirm] = useState<{ sectionId: string; itemId: string } | null>(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [weeklyExpanded, setWeeklyExpanded] = useState(false);
 
   useEffect(() => {
     // Load causes library
@@ -192,7 +193,38 @@ export default function Today() {
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as DailyCompletion;
-        setCompletedIds(parsed.completedIds ?? []);
+        let ids = parsed.completedIds ?? [];
+        
+        // Check if it's Monday and reset weekly items
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        
+        // If it's Monday at or after 4:30am, clear weekly item completions
+        if (dayOfWeek === 1 && (hour > 4 || (hour === 4 && minute >= 30))) {
+          const lastResetKey = 'grnd_weekly_last_reset';
+          const lastReset = localStorage.getItem(lastResetKey);
+          const currentWeekStart = new Date(now);
+          currentWeekStart.setHours(4, 30, 0, 0);
+          currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay() + 1); // Monday
+          
+          // Only reset if we haven't reset this week yet
+          if (!lastReset || new Date(lastReset) < currentWeekStart) {
+            // Filter out weekly item IDs
+            const weeklyItemIds = weeklyItems.map(item => item.id);
+            ids = ids.filter(id => !weeklyItemIds.includes(id));
+            
+            // Save the reset timestamp
+            localStorage.setItem(lastResetKey, currentWeekStart.toISOString());
+            
+            // Update storage with filtered IDs
+            const updatedCompletion: DailyCompletion = { completedIds: ids };
+            localStorage.setItem(completionKey, JSON.stringify(updatedCompletion));
+          }
+        }
+        
+        setCompletedIds(ids);
       } catch {
         setCompletedIds([]);
       }
@@ -246,9 +278,18 @@ export default function Today() {
     localStorage.setItem(completionKey, JSON.stringify(completion));
   }, [completionKey, completedIds]);
 
-  const allItems = useMemo(() => sections.flatMap((s) => s.items), [sections]);
+  const dailySections = useMemo(() => sections.filter((s) => s.id !== 'weekly-environment'), [sections]);
+  const weeklySection = useMemo(() => sections.find((s) => s.id === 'weekly-environment'), [sections]);
+  
+  const allItems = useMemo(() => dailySections.flatMap((s) => s.items), [dailySections]);
   const totalCount = allItems.length;
-  const checkedCount = completedIds.length;
+  const checkedCount = completedIds.filter((id) => allItems.some((item) => item.id === id)).length;
+  
+  const weeklyItems = useMemo(() => weeklySection?.items || [], [weeklySection]);
+  const weeklyCheckedCount = useMemo(() => 
+    completedIds.filter((id) => weeklyItems.some((item) => item.id === id)).length,
+    [completedIds, weeklyItems]
+  );
 
   const sleepDurationMinutes = useMemo(() => {
     const bed = parseTimeToMinutes(sleep.bedTime);
@@ -626,9 +667,19 @@ export default function Today() {
   };
 
   const handleAddItem = (sectionId: string) => {
-    if (!newItem.name || !newItem.time || !newItem.purpose || !newItem.consequence) {
-      setShowValidation(true);
-      return;
+    const isWeeklySection = sectionId === 'weekly-environment';
+    
+    // Weekly items don't require time field
+    if (isWeeklySection) {
+      if (!newItem.name || !newItem.purpose || !newItem.consequence) {
+        setShowValidation(true);
+        return;
+      }
+    } else {
+      if (!newItem.name || !newItem.time || !newItem.purpose || !newItem.consequence) {
+        setShowValidation(true);
+        return;
+      }
     }
 
     const item: ChecklistItem = {
@@ -638,6 +689,7 @@ export default function Today() {
       layer: newItem.layer,
       purpose: newItem.purpose,
       consequence: newItem.consequence,
+      type: isWeeklySection ? 'weekly' : undefined,
     };
 
     setSections((prev) =>
@@ -651,7 +703,9 @@ export default function Today() {
     setAddItemSection(null);
   };
 
-  const canSaveNewItem = newItem.name && newItem.time && newItem.purpose && newItem.consequence;
+  const canSaveNewItem = addItemSection === 'weekly-environment' 
+    ? newItem.name && newItem.purpose && newItem.consequence
+    : newItem.name && newItem.time && newItem.purpose && newItem.consequence;
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-20">
@@ -1006,7 +1060,7 @@ export default function Today() {
         </div>
 
         <div className="mt-4 space-y-3">
-          {sections.map((section) => {
+          {dailySections.map((section) => {
             const sectionChecked = section.items.filter((it) => completedIds.includes(it.id)).length;
             const isOpen = expanded[section.id] !== false;
             const isEditing = editingSection === section.id;
@@ -1294,6 +1348,126 @@ export default function Today() {
           })}
         </div>
       </Card>
+
+      {/* Weekly Environment Checklist */}
+      {weeklySection && (
+        <Card>
+          <button
+            type="button"
+            onClick={() => setWeeklyExpanded(!weeklyExpanded)}
+            className="flex w-full items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">{weeklySection.emoji}</span>
+              <span className="text-xs font-semibold tracking-widest text-text-secondary">WEEKLY ENVIRONMENT</span>
+              {weeklyCheckedCount === weeklyItems.length && weeklyItems.length > 0 && (
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-text-secondary">
+                {weeklyCheckedCount}/{weeklyItems.length}
+              </div>
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 text-text-secondary transition-transform ${weeklyExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
+          </button>
+
+          {weeklyExpanded && (
+            <div className="mt-3 space-y-2">
+              {weeklyItems.map((item) => {
+                const checked = completedIds.includes(item.id);
+                const isEditing = editingSection === weeklySection.id;
+
+                return (
+                  <div key={item.id} className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <div className="text-text-secondary">☰</div>
+                        <button
+                          type="button"
+                          onClick={() => setDetailItem(item)}
+                          className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
+                        >
+                          <div className="text-sm text-text-primary">{item.name}</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirm({ sectionId: weeklySection.id, itemId: item.id })}
+                          className="min-h-[44px] px-2 text-red-500"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleItem(item.id)}
+                        className={
+                          checked
+                            ? 'w-full rounded-brand bg-card/60 px-3 py-3'
+                            : 'w-full rounded-brand bg-card px-3 py-3'
+                        }
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 shrink-0">
+                            <Checkbox checked={checked} />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailItem(item);
+                              }}
+                              className={
+                                checked
+                                  ? 'text-sm text-text-secondary line-through cursor-pointer'
+                                  : 'text-sm text-text-primary cursor-pointer'
+                              }
+                            >
+                              {item.name}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {editingSection === weeklySection.id && (
+                <button
+                  type="button"
+                  onClick={() => setAddItemSection(weeklySection.id)}
+                  className="mt-3 min-h-[44px] w-full rounded-brand border border-primary text-primary"
+                >
+                  + Add item
+                </button>
+              )}
+
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingSection(editingSection === weeklySection.id ? null : weeklySection.id)}
+                  className="min-h-[44px] px-2"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-text-secondary" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Item Detail Modal */}
       {detailItem ? (
