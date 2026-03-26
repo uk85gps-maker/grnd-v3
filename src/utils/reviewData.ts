@@ -198,7 +198,23 @@ export function getStageData(): StageData {
       // Ensure pyramid exists
       if (!data.pyramid) {
         data.pyramid = DEFAULT_PYRAMID;
+      } else {
+        // Migrate pyramid layers if names have changed, preserving user data
+        const migratedPyramid = DEFAULT_PYRAMID.map((defaultLayer) => {
+          const existingLayer = data.pyramid.find((l: PyramidLayer) => l.id === defaultLayer.id);
+          if (existingLayer) {
+            return {
+              ...defaultLayer,
+              status: existingLayer.status,
+              activeActions: existingLayer.activeActions,
+              evidence: existingLayer.evidence,
+            };
+          }
+          return defaultLayer;
+        });
+        data.pyramid = migratedPyramid;
       }
+      saveStageData(data);
       return data;
     } catch {
       const data = { ...DEFAULT_STAGE_DATA, pyramid: DEFAULT_PYRAMID };
