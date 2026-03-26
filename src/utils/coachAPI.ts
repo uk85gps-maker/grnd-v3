@@ -12,6 +12,9 @@ export async function sendMessageToCoach(
   userMessage: string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
+  console.log('API Key check:', import.meta.env.VITE_ANTHROPIC_API_KEY ? 'FOUND' : 'MISSING');
+  console.log('API Key value:', API_KEY);
+  
   if (!API_KEY) {
     throw new Error('API key not configured. Please add VITE_ANTHROPIC_API_KEY to your .env file.');
   }
