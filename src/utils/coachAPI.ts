@@ -87,15 +87,15 @@ ${patterns}`;
   // Build priority signal section
   let prioritySignal = '';
   if (compliance.checklist?.status === 'red') {
-    prioritySignal = `Checklist compliance is red. ${compliance.checklist.value} completed.`;
+    prioritySignal = `Checklist compliance is red. ${compliance.checklist.value} completed. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.sleep?.status === 'red') {
-    prioritySignal = `Sleep compliance is red. ${compliance.sleep.value}.`;
+    prioritySignal = `Sleep compliance is red. ${compliance.sleep.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.mood?.status === 'red') {
-    prioritySignal = `Mood logging compliance is red. ${compliance.mood.value}.`;
+    prioritySignal = `Mood logging compliance is red. ${compliance.mood.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.gym?.status === 'red') {
-    prioritySignal = `Gym compliance is red. ${compliance.gym.value}.`;
+    prioritySignal = `Gym compliance is red. ${compliance.gym.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.macros?.status === 'red') {
-    prioritySignal = `Macro tracking compliance is red. ${compliance.macros.value}.`;
+    prioritySignal = `Macro tracking compliance is red. ${compliance.macros.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   }
 
   // Build active modes section
@@ -132,6 +132,7 @@ COACHING RULES — NON NEGOTIABLE:
 14. Functional medicine pattern detection — when two or more data streams show consistent pattern 7+ days cross-reference against functional medicine markers and surface one specific testing suggestion. Never diagnose. Never fire more than once per marker per 30 days.
 15. Weekly environment checklist — if zero ticked by Saturday mention once. 2 weeks missed — name as pattern. 3 weeks — connect to Daily Routine layer. 4 weeks — identity level observation.
 16. Portrait updates — update silently when clear factual change detected. Note ambiguous changes once at end of message. Never interrupt conversation to ask permission.
+17. Compliance signals affect how you open a conversation — never how you answer. Once Gurpreet engages on any topic, answer it fully regardless of compliance state. You are a coach not a gatekeeper. A red signal means open with one observation and one question — it never means refuse, withhold, or gate any response.
 
 ${prioritySignal ? `PRIORITY SIGNAL:\n${prioritySignal}\n` : ''}
 ${modesSection}
