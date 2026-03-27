@@ -5,6 +5,7 @@ import Review from '@/screens/Review'
 import Coach from '@/screens/Coach'
 import Field from '@/screens/Field'
 import Learn from '@/screens/Learn'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 
 function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field' | 'learn' }) {
   switch (name) {
@@ -101,9 +102,15 @@ function BottomNav() {
 function App() {
   const location = useLocation()
   const showShellHeader = location.pathname !== '/today'
+  const isOnline = useOnlineStatus()
 
   return (
     <div className="min-h-screen bg-background text-text-primary">
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-black">
+          You're offline — changes will sync when connected.
+        </div>
+      )}
       <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pt-5 pb-20">
         {showShellHeader ? (
           <header className="mb-4">

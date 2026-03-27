@@ -9,18 +9,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+      },
       manifest: {
-        name: 'grnd-v3',
-        short_name: 'grnd-v3',
+        name: 'GRND',
+        short_name: 'GRND',
         start_url: '/',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#ffffff',
+        background_color: '#0a0a0a',
+        theme_color: '#d4af37',
         icons: [
           {
-            src: '/vite.svg',
+            src: '/icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
+            purpose: 'any maskable',
           },
         ],
       },
