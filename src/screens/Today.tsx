@@ -44,15 +44,9 @@ function formatDuration(minutes: number) {
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
-function Card({ children, accentLeft }: { children: React.ReactNode; accentLeft?: boolean }) {
+function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={
-        accentLeft
-          ? 'rounded-brand bg-card p-4 border-l-[3px] border-primary'
-          : 'rounded-brand bg-card p-4'
-      }
-    >
+    <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
       {children}
     </div>
   );
@@ -841,10 +835,10 @@ export default function Today() {
           onClick={() => handleSectionToggle('focus')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Today's Focus</div>
+          <div className="text-base font-bold text-white">🎯 Today's Focus</div>
           <svg
             viewBox="0 0 24 24"
-            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'focus' ? 'rotate-180' : ''}`}
+            className={`h-5 w-5 text-zinc-400 transition-transform ${openSection === 'focus' ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -923,7 +917,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('proof')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Yesterday's Proof</div>
+          <div className="text-base font-bold text-white">⚡ Yesterday's Proof</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'proof' ? 'rotate-180' : ''}`}
@@ -951,7 +945,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('sleep')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Sleep Check-In</div>
+          <div className="text-base font-bold text-white">🌙 Sleep Check-In</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'sleep' ? 'rotate-180' : ''}`}
@@ -1073,7 +1067,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('macros')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Macros</div>
+          <div className="text-base font-bold text-white">🍽️ Macros</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'macros' ? 'rotate-180' : ''}`}
@@ -1214,7 +1208,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('stats')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Stats</div>
+          <div className="text-base font-bold text-white">📊 Stats</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'stats' ? 'rotate-180' : ''}`}
@@ -1283,7 +1277,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('gym')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Gym</div>
+          <div className="text-base font-bold text-white">🏋️ Gym</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'gym' ? 'rotate-180' : ''}`}
@@ -1330,7 +1324,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('checklist')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-text-primary">Today's Score</div>
+          <div className="text-base font-bold text-white">✅ Today's Score</div>
           <div className="flex items-center gap-2">
             <div className="text-base font-bold text-primary">
               {checkedCount}/{totalCount}
@@ -1656,7 +1650,7 @@ export default function Today() {
           >
             <div className="flex items-center gap-2">
               <span className="text-base">{weeklySection.emoji}</span>
-              <span className="text-xs font-semibold tracking-widest text-text-secondary">WEEKLY ENVIRONMENT</span>
+              <span className="text-base font-bold text-white">🏠 Weekly Environment</span>
               {weeklyCheckedCount === weeklyItems.length && weeklyItems.length > 0 && (
                 <div className="h-2 w-2 rounded-full bg-green-500" />
               )}

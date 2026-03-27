@@ -20,7 +20,7 @@ const SUPPORTED_TYPES = {
 };
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-brand bg-card p-4">{children}</div>;
+  return <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">{children}</div>;
 }
 
 function LayerBadge({ layer }: { layer: 2 | 3 | 4 | 5 | 6 | 7 }) {
@@ -270,7 +270,7 @@ export default function Learn() {
     <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 z-10 bg-background px-4 py-4">
         <h1 className="text-2xl font-bold text-text-primary">Learn</h1>
-        <p className="text-sm text-text-secondary">Material library</p>
+        <p className="text-sm text-zinc-400">📚 Material Library</p>
       </div>
 
       <div className="space-y-3 px-4">

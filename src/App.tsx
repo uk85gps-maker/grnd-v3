@@ -65,34 +65,64 @@ function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field
 function BottomNav() {
   const linkBase = 'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs'
   const linkClassName = ({ isActive }: { isActive: boolean }) =>
-    `${linkBase} ${isActive ? 'text-primary' : 'text-text-secondary'}`
+    `${linkBase} ${isActive ? 'text-[#d4af37]' : 'text-zinc-500'}`
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="mx-auto flex max-w-md rounded-t-[12px] px-2">
         <NavLink to="/today" className={linkClassName}>
-          <TabIcon name="today" />
-          <span>Today</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="today" />
+              <span>Today</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
         <NavLink to="/coach" className={linkClassName}>
-          <TabIcon name="coach" />
-          <span>Coach</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="coach" />
+              <span>Coach</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
         <NavLink to="/gym" className={linkClassName}>
-          <TabIcon name="gym" />
-          <span>Gym</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="gym" />
+              <span>Gym</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
         <NavLink to="/review" className={linkClassName}>
-          <TabIcon name="review" />
-          <span>Review</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="review" />
+              <span>Review</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
         <NavLink to="/field" className={linkClassName}>
-          <TabIcon name="field" />
-          <span>Field</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="field" />
+              <span>Field</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
         <NavLink to="/learn" className={linkClassName}>
-          <TabIcon name="learn" />
-          <span>Learn</span>
+          {({ isActive }) => (
+            <>
+              <TabIcon name="learn" />
+              <span>Learn</span>
+              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
+            </>
+          )}
         </NavLink>
       </div>
     </nav>

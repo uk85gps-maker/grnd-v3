@@ -261,19 +261,6 @@ export default function Review() {
     }
   };
 
-  const getLayerColor = (status: PyramidLayer['status']) => {
-    switch (status) {
-      case 'stable':
-        return 'bg-green-500';
-      case 'building':
-        return 'bg-primary';
-      case 'cracking':
-        return 'bg-amber-500';
-      case 'broken':
-        return 'bg-red-500';
-    }
-  };
-
   const bestStream = useMemo(() => {
     const built = streamRows.filter((s) => s.built && s.status !== 'grey');
     if (built.length === 0) return null;
@@ -303,10 +290,10 @@ export default function Review() {
       </div>
 
       {/* 1. Compliance Dashboard */}
-      <div className="rounded-brand bg-card p-4">
+      <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
         <div className="mb-4 text-center">
-          <div className="text-5xl font-bold text-primary">{systemHealthScore}</div>
-          <div className="mt-1 text-xs text-text-secondary">System Health Score</div>
+          <div className="text-3xl font-bold text-[#d4af37]">{systemHealthScore}</div>
+          <div className="mt-1 text-xs text-zinc-400">System Health Score</div>
         </div>
 
         <div className="space-y-2">
@@ -335,8 +322,8 @@ export default function Review() {
           ))}
         </div>
 
-        <div className="mt-4 rounded-brand bg-background p-3">
-          <div className="mb-2 text-xs font-semibold text-text-secondary">WEEKLY SUMMARY</div>
+        <div className="mt-4 rounded-2xl border border-[#2a2a2a] bg-[#141414] p-3">
+          <div className="mb-2 text-xs font-semibold text-zinc-400">WEEKLY SUMMARY</div>
           <div className="space-y-1 text-xs text-text-primary">
             <div>System Health: {systemHealthScore}/100</div>
             {bestStream && <div>Best Stream: {bestStream.name}</div>}
@@ -354,15 +341,19 @@ export default function Review() {
           </button>
         </div>
 
-        <div className="rounded-brand bg-card p-6">
+        <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-6">
           <div className="space-y-1">
             {pyramidLayers.slice().reverse().map((layer) => (
               <button
                 key={layer.id}
                 type="button"
                 onClick={() => setShowPyramidDetail(layer)}
-                className={`w-full rounded-brand ${getLayerColor(layer.status)} px-4 py-2 text-center text-xs font-semibold text-background`}
-                style={{ width: `${100 - (layer.id - 1) * 6}%`, margin: '0 auto' }}
+                className="w-full rounded-2xl px-4 py-2 text-center text-xs font-bold text-black"
+                style={{
+                  width: `${100 - (layer.id - 1) * 6}%`,
+                  margin: '0 auto',
+                  backgroundColor: layer.id === 10 ? '#ffd700' : layer.id === 9 ? '#d4af37' : layer.id === 8 ? '#d4a030' : layer.id === 7 ? '#c49028' : layer.id === 6 ? '#b08020' : layer.id === 5 ? '#9a7018' : layer.id === 4 ? '#8a6214' : layer.id === 3 ? '#7a5510' : layer.id === 2 ? '#6b4a0d' : '#5a3e0a'
+                } as React.CSSProperties}
               >
                 {layer.name}
               </button>

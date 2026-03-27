@@ -236,13 +236,13 @@ export default function Gym() {
   const getDayTypeLabel = (dayType: DayType): string => {
     switch (dayType) {
       case 'push':
-        return 'Push Day';
+        return '⚡ Push Day';
       case 'pull':
-        return 'Pull Day';
+        return '🔗 Pull Day';
       case 'legs':
-        return 'Legs Day';
+        return '🦵 Leg Day';
       case 'rest':
-        return 'Rest Day';
+        return '💤 Rest Day';
     }
   };
 
@@ -313,8 +313,8 @@ export default function Gym() {
             onClick={() => setSelectedTab(tab)}
             className={
               selectedTab === tab
-                ? 'flex-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-background'
-                : 'flex-1 rounded-full border border-text-secondary px-4 py-2 text-xs text-text-secondary'
+                ? 'flex-1 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black'
+                : 'flex-1 rounded-full border border-[#2a2a2a] bg-[#1e1e1e] px-4 py-2 text-xs text-zinc-400'
             }
           >
             {tab.toUpperCase()}

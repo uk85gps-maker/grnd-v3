@@ -5,7 +5,7 @@ const STORAGE_KEY_ACTIONS = 'grnd_field_log_actions';
 const STORAGE_KEY_OUTCOMES = 'grnd_field_log';
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-brand bg-card p-4">{children}</div>;
+  return <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">{children}</div>;
 }
 
 function RatingCircles({ rating, max = 5, onRate }: { rating: number; max?: number; onRate?: (r: number) => void }) {
@@ -257,7 +257,7 @@ LAYER: ${action.layer}`;
       <div className="space-y-6 px-4">
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-text-primary">Active Missions</h2>
+            <h2 className="text-lg font-bold text-white">🎯 Active Missions</h2>
             <button
               type="button"
               onClick={openAddAction}
@@ -334,7 +334,7 @@ LAYER: ${action.layer}`;
         </div>
 
         <div>
-          <h2 className="mb-3 text-lg font-bold text-text-primary">Evidence Case File</h2>
+          <h2 className="mb-3 text-lg font-bold text-white">📁 Evidence Case File</h2>
           {outcomes.length === 0 ? (
             <Card>
               <div className="py-8 text-center">

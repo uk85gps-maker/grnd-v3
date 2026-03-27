@@ -233,10 +233,10 @@ export default function Coach() {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`relative max-w-[80%] rounded-brand p-3 ${
+              className={`relative max-w-[80%] rounded-2xl p-3 ${
                 msg.role === 'user'
-                  ? 'bg-primary text-background'
-                  : 'bg-card text-text-primary'
+                  ? 'bg-[#d4af37] text-black font-medium'
+                  : 'bg-[#141414] border border-[#2a2a2a] text-white'
               }`}
             >
               <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
@@ -244,9 +244,9 @@ export default function Coach() {
                 <button
                   type="button"
                   onClick={() => handleCopyMessage(msg.content)}
-                  className="absolute bottom-2 right-2 text-text-secondary hover:text-text-primary"
+                  className="absolute bottom-2 right-2 text-zinc-400 hover:text-[#d4af37]"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
@@ -292,7 +292,7 @@ export default function Coach() {
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Ask Coach anything"
-          className="flex-1 rounded-brand border border-text-secondary bg-background px-4 py-3 text-text-primary outline-none focus:border-primary"
+          className="flex-1 rounded-2xl border border-[#2a2a2a] bg-[#1e1e1e] px-4 py-3 text-white outline-none focus:border-[#d4af37]"
         />
         <button
           type="button"
