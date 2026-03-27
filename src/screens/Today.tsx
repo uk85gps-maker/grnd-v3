@@ -117,9 +117,8 @@ export default function Today() {
     localStorage.setItem(CHECKLIST_STRUCTURE_KEY, JSON.stringify(sections));
   }, [sections]);
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(sections.map((s) => [s.id, true]))
-  );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   // Load daily completion (ID-based)
   const [completedIds, setCompletedIds] = useState<string[]>([]);
@@ -174,6 +173,26 @@ export default function Today() {
   const [showValidation, setShowValidation] = useState(false);
   const [weeklyExpanded, setWeeklyExpanded] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ sectionId: string; itemId: string } | null>(null);
+
+  // Focus item state
+  interface FocusState {
+    date: string;
+    completed: string[];
+    dismissed: string[];
+  }
+  const [focusState, setFocusState] = useState<FocusState>(() => {
+    const stored = localStorage.getItem('grnd_focus_state');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as FocusState;
+        if (parsed.date === dayKey) {
+          return parsed;
+        }
+      } catch {}
+    }
+    return { date: dayKey, completed: [], dismissed: [] };
+  });
+  const [swipedFocusItem, setSwipedFocusItem] = useState<string | null>(null);
 
   useEffect(() => {
     // Load causes library
@@ -280,6 +299,10 @@ export default function Today() {
     localStorage.setItem(completionKey, JSON.stringify(completion));
   }, [completionKey, completedIds]);
 
+  useEffect(() => {
+    localStorage.setItem('grnd_focus_state', JSON.stringify(focusState));
+  }, [focusState]);
+
   const dailySections = useMemo(() => sections.filter((s) => s.id !== 'weekly-environment'), [sections]);
   const weeklySection = useMemo(() => {
     const found = sections.find((s) => s.id === 'weekly-environment');
@@ -328,35 +351,55 @@ export default function Today() {
   // Macro tracking handlers - defined before handleToggleItem to avoid reference errors
   const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
 
-  const handleToggleMealConfirm = (mealId: string) => {
+  const handleConfirmMeal = (mealId: string) => {
     const existing = macroEntries.find((e) => e.id === mealId);
-    let updated: MacroLogEntry[];
-
+    
+    const meal = mealPlanDefaults.find((m) => m.id === mealId);
+    if (!meal) return;
+    
     if (existing) {
-      // Toggle confirmation
-      updated = macroEntries.map((e) => (e.id === mealId ? { ...e, confirmed: !e.confirmed } : e));
+      const updated = macroEntries.map((e) =>
+        e.id === mealId ? { ...e, confirmed: !e.confirmed } : e
+      );
+      setMacroEntries(updated);
+      localStorage.setItem(macroKey, JSON.stringify(updated));
+      
+      // Link to checklist - toggle matching item
+      const matchingItem = allItems.find((item) => item.name === meal.name);
+      if (matchingItem) {
+        if (!existing.confirmed) {
+          // Confirming meal - check checklist item
+          if (!completedIds.includes(matchingItem.id)) {
+            setCompletedIds((prev) => [...prev, matchingItem.id]);
+          }
+        } else {
+          // Unconfirming meal - uncheck checklist item
+          setCompletedIds((prev) => prev.filter((id) => id !== matchingItem.id));
+        }
+      }
     } else {
-      // Add from defaults
-      const defaultMeal = mealPlanDefaults.find((m) => m.id === mealId);
-      if (!defaultMeal) return;
-
       const newEntry: MacroLogEntry = {
-        id: defaultMeal.id,
-        name: defaultMeal.name,
-        time: defaultMeal.time,
-        calories: defaultMeal.calories,
-        protein: defaultMeal.protein,
-        carbs: defaultMeal.carbs,
-        fat: defaultMeal.fat,
-        source: 'default',
+        id: mealId,
+        name: meal.name,
+        time: new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }),
+        calories: meal.calories,
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat,
+        source: 'default' as const,
         confirmed: true,
-        purpose: defaultMeal.purpose,
+        purpose: '',
       };
-      updated = [...macroEntries, newEntry];
+      const updated = [...macroEntries, newEntry];
+      setMacroEntries(updated);
+      localStorage.setItem(macroKey, JSON.stringify(updated));
+      
+      // Link to checklist - check matching item
+      const matchingItem = allItems.find((item) => item.name === meal.name);
+      if (matchingItem && !completedIds.includes(matchingItem.id)) {
+        setCompletedIds((prev) => [...prev, matchingItem.id]);
+      }
     }
-
-    setMacroEntries(updated);
-    localStorage.setItem(macroKey, JSON.stringify(updated));
   };
 
   const handleToggleItem = (id: string) => {
@@ -377,12 +420,12 @@ export default function Today() {
         if (!isCurrentlyCompleted) {
           // Ticking the item - confirm the meal if not already confirmed
           if (!matchingMeal.confirmed) {
-            handleToggleMealConfirm(matchingMeal.id);
+            handleConfirmMeal(matchingMeal.id);
           }
         } else {
           // Unticking the item - unconfirm the meal if currently confirmed
           if (matchingMeal.confirmed) {
-            handleToggleMealConfirm(matchingMeal.id);
+            handleConfirmMeal(matchingMeal.id);
           }
         }
       }
@@ -392,6 +435,31 @@ export default function Today() {
     setCompletedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  const handleToggleFocusItem = (itemId: string) => {
+    setFocusState((prev) => ({
+      ...prev,
+      completed: prev.completed.includes(itemId)
+        ? prev.completed.filter((id) => id !== itemId)
+        : [...prev.completed, itemId],
+    }));
+  };
+
+  const handleDismissFocusItem = (itemId: string) => {
+    setFocusState((prev) => ({
+      ...prev,
+      dismissed: [...prev.dismissed, itemId],
+    }));
+    setSwipedFocusItem(null);
+  };
+
+  const handleSectionToggle = (sectionId: string) => {
+    if (openSection === sectionId) {
+      setOpenSection(null);
+    } else {
+      setOpenSection(sectionId);
+    }
   };
 
   const handleSaveSleep = () => {
@@ -767,52 +835,144 @@ export default function Today() {
         <div className="text-[12px] text-text-secondary">{formatHeaderDate()}</div>
       </div>
 
-      <Card accentLeft>
-        <div className="text-[11px] font-semibold tracking-widest text-primary">TODAY'S FOCUS</div>
-        <div className="mt-3 space-y-4">
-          <div>
-            <div className="text-text-primary">
-              <span className="mr-2 text-text-primary">1.</span>
-              Book DEXA scan to establish body composition baseline
-            </div>
-            <div className="mt-1 text-[10px] font-semibold tracking-widest text-primary">BODY</div>
+      <Card>
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('focus')}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-base font-bold text-text-primary">Today's Focus</div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'focus' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'focus' && (
+          <div className="mt-3 space-y-3">
+            {[{ id: 'focus-1', text: 'Book DEXA scan to establish body composition baseline', layer: 'BODY' }, { id: 'focus-2', text: 'Schedule physio consultation for shoulder and elbow assessment', layer: 'FOUNDATION' }]
+              .filter((item) => !focusState.dismissed.includes(item.id))
+              .map((item) => {
+                const isCompleted = focusState.completed.includes(item.id);
+                const isSwiped = swipedFocusItem === item.id;
+                return (
+                  <div key={item.id} className="relative">
+                    <div
+                      className="relative overflow-hidden"
+                      onTouchStart={(e) => {
+                        const touch = e.touches[0];
+                        (e.currentTarget as any).startX = touch.clientX;
+                      }}
+                      onTouchMove={(e) => {
+                        const touch = e.touches[0];
+                        const startX = (e.currentTarget as any).startX;
+                        if (startX && touch.clientX < startX - 50) {
+                          setSwipedFocusItem(item.id);
+                        }
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFocusItem(item.id)}
+                        className={`w-full rounded-brand p-3 text-left transition-all ${
+                          isSwiped ? 'translate-x-[-80px]' : ''
+                        } ${isCompleted ? 'bg-primary/10' : 'bg-card'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1">
+                            {isCompleted ? (
+                              <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                            ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-text-secondary" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className={isCompleted ? 'text-sm text-primary line-through' : 'text-sm text-text-primary'}>
+                              {item.text}
+                            </div>
+                            <div className="mt-1 text-[10px] font-semibold tracking-widest text-primary">{item.layer}</div>
+                          </div>
+                        </div>
+                      </button>
+                      {isSwiped && (
+                        <button
+                          type="button"
+                          onClick={() => handleDismissFocusItem(item.id)}
+                          className="absolute right-0 top-0 flex h-full w-[80px] items-center justify-center bg-red-500 text-white"
+                        >
+                          Dismiss
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
-          <div>
-            <div className="text-text-primary">
-              <span className="mr-2 text-text-primary">2.</span>
-              Schedule physio consultation for shoulder and elbow assessment
-            </div>
-            <div className="mt-1 text-[10px] font-semibold tracking-widest text-primary">FOUNDATION</div>
-          </div>
-        </div>
-      </Card>
-
-      <Card accentLeft>
-        <div className="flex items-start justify-between">
-          <div className="text-[11px] font-semibold tracking-widest text-primary">YESTERDAY'S PROOF</div>
-        </div>
-        <div className="mt-3 text-sm text-text-primary">
-          {yesterdayProof ? (
-            yesterdayProof
-          ) : (
-            <span className="italic text-text-secondary">Start logging today. Your proof builds from here.</span>
-          )}
-        </div>
+        )}
       </Card>
 
       <Card>
-        <div className="flex items-start justify-between">
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('proof')}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-base font-bold text-text-primary">Yesterday's Proof</div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'proof' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'proof' && (
+          <div className="mt-3 text-sm text-text-primary">
+            {yesterdayProof ? (
+              yesterdayProof
+            ) : (
+              <span className="italic text-text-secondary">Start logging today. Your proof builds from here.</span>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('sleep')}
+          className="flex w-full items-center justify-between"
+        >
           <div className="text-base font-bold text-text-primary">Sleep Check-In</div>
-          {!sleepEditing && sleepSaved ? (
-            <button
-              type="button"
-              onClick={() => setSleepEditing(true)}
-              className="min-h-[44px] px-2 text-sm font-semibold text-primary"
-            >
-              Edit
-            </button>
-          ) : null}
-        </div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'sleep' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'sleep' && (
+          <div className="mt-3">
+            {!sleepEditing && sleepSaved ? (
+              <button
+                type="button"
+                onClick={() => setSleepEditing(true)}
+                className="mb-3 text-sm font-semibold text-primary"
+              >
+                Edit
+              </button>
+            ) : null}
 
         {!sleepEditing && sleepSaved ? (
           <div className="mt-3 space-y-3">
@@ -902,11 +1062,30 @@ export default function Today() {
             </button>
           </div>
         )}
+          </div>
+        )}
       </Card>
 
       {/* Macro Summary Card */}
       <Card>
-        <div className="text-base font-bold text-text-primary">Macros</div>
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('macros')}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-base font-bold text-text-primary">Macros</div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'macros' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'macros' && (
+          <div className="mt-3">
         
         {/* Summary Row */}
         <div className="mt-3 grid grid-cols-4 gap-2">
@@ -953,7 +1132,7 @@ export default function Today() {
               <button
                 key={meal.id}
                 type="button"
-                onClick={() => handleToggleMealConfirm(meal.id)}
+                onClick={() => handleConfirmMeal(meal.id)}
                 className={
                   isConfirmed
                     ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
@@ -984,7 +1163,7 @@ export default function Today() {
               <button
                 key={meal.id}
                 type="button"
-                onClick={() => handleToggleMealConfirm(meal.id)}
+                onClick={() => handleConfirmMeal(meal.id)}
                 className={
                   meal.confirmed
                     ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
@@ -1025,10 +1204,30 @@ export default function Today() {
             Log Custom Meal
           </button>
         </div>
+          </div>
+        )}
       </Card>
 
-      <div className="-mx-5 overflow-x-auto px-5">
-        <div className="flex w-max gap-3 pr-10">
+      <Card>
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('stats')}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-base font-bold text-text-primary">Stats</div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'stats' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'stats' && (
+          <div className="-mx-4 mt-3 overflow-x-auto px-4">
+            <div className="flex w-max gap-3 pr-10">
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">WEIGHT</div>
             <div className="mt-1 text-lg font-bold text-text-primary">80.8kg</div>
@@ -1073,14 +1272,34 @@ export default function Today() {
               <span className="text-text-secondary">building</span>
             </div>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
-      <button
-        type="button"
-        onClick={() => navigate('/gym')}
-        className="min-h-[44px] w-full rounded-brand border border-primary bg-card px-4"
-      >
+      <Card>
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('gym')}
+          className="flex w-full items-center justify-between"
+        >
+          <div className="text-base font-bold text-text-primary">Gym</div>
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'gym' ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSection === 'gym' && (
+          <button
+            type="button"
+            onClick={() => navigate('/gym')}
+            className="mt-3 min-h-[44px] w-full rounded-brand border border-primary bg-card px-4"
+          >
         <div className="flex items-center gap-3">
           <div className="text-primary">
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1101,15 +1320,33 @@ export default function Today() {
             </svg>
           </div>
         </div>
-      </button>
+          </button>
+        )}
+      </Card>
 
       <Card>
-        <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => handleSectionToggle('checklist')}
+          className="flex w-full items-center justify-between"
+        >
           <div className="text-base font-bold text-text-primary">Today's Score</div>
-          <div className="text-base font-bold text-primary">
-            {checkedCount}/{totalCount}
+          <div className="flex items-center gap-2">
+            <div className="text-base font-bold text-primary">
+              {checkedCount}/{totalCount}
+            </div>
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'checklist' ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
-        </div>
+        </button>
+        {openSection === 'checklist' && (
 
         <div className="mt-4 space-y-3">
           {dailySections.map((section) => {
@@ -1406,6 +1643,7 @@ export default function Today() {
             );
           })}
         </div>
+        )}
       </Card>
 
       {/* Weekly Environment Checklist */}
