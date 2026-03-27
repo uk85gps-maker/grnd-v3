@@ -3,6 +3,7 @@ import Today from '@/screens/Today'
 import Gym from '@/screens/Gym'
 import Review from '@/screens/Review'
 import Coach from '@/screens/Coach'
+import Field from '@/screens/Field'
 
 function Screen({ title }: { title: string }) {
   return (
@@ -123,7 +124,7 @@ function App() {
           <Route path="/coach" element={<Coach />} />
           <Route path="/gym" element={<Gym />} />
           <Route path="/review" element={<Review />} />
-          <Route path="/field" element={<Screen title="Field" />} />
+          <Route path="/field" element={<Field />} />
           <Route path="/learn" element={<Screen title="Learn" />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>

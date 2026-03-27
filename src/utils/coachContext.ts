@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   BLOOD_RESULTS: 'grnd_blood_results',
   SPECIALIST_ACTIONS: 'grnd_specialist_actions',
   FIELD_LOG: 'grnd_field_log',
+  FIELD_LOG_ACTIONS: 'grnd_field_log_actions',
   STAGE_DATA: 'grnd_stage_data',
   MILESTONES: 'grnd_milestones',
   EDIT_HISTORY: 'grnd_edit_history',
@@ -260,8 +261,35 @@ export function getComplianceSnapshot(): {
     // Will check: Pending specialist actions, overdue bookings from grnd_specialist_actions
     specialists: null,
 
-    // Will check: Field action frequency, confidence trends from grnd_field_log
-    field: null,
+    // Checks: Last 7 days of field actions - green if 2+ per week, amber if 1, red if 0
+    field: (() => {
+      const raw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
+      if (!raw) {
+        return { name: 'Field Actions', status: 'red', value: '0 this week', threshold: '2+ per week' };
+      }
+      
+      try {
+        const outcomes = JSON.parse(raw) as Array<{ loggedAt: string }>;
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        
+        const thisWeekCount = outcomes.filter((o) => {
+          const loggedDate = new Date(o.loggedAt);
+          return loggedDate >= weekAgo && loggedDate <= today;
+        }).length;
+        
+        if (thisWeekCount >= 2) {
+          return { name: 'Field Actions', status: 'green', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
+        } else if (thisWeekCount === 1) {
+          return { name: 'Field Actions', status: 'amber', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
+        } else {
+          return { name: 'Field Actions', status: 'red', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
+        }
+      } catch {
+        return { name: 'Field Actions', status: 'red', value: '0 this week', threshold: '2+ per week' };
+      }
+    })(),
   };
 }
 
@@ -392,7 +420,77 @@ export function getCoachContext(): {
     specialists: null,
 
     // Populated by: Field tab - field actions and confidence ratings
-    field: null,
+    field: (() => {
+      const actionsRaw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG_ACTIONS);
+      const outcomesRaw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
+      
+      if (!outcomesRaw) {
+        return {
+          actionsInLibrary: actionsRaw ? JSON.parse(actionsRaw).filter((a: any) => !a.isArchived).length : 0,
+          outcomesThisWeek: 0,
+          lastFiveOutcomes: [],
+          weeklyActionTarget: 2,
+          complianceStatus: 'red',
+        };
+      }
+      
+      try {
+        const actions = actionsRaw ? JSON.parse(actionsRaw) : [];
+        const outcomes = JSON.parse(outcomesRaw) as Array<{
+          id: string;
+          actionId: string;
+          date: string;
+          actionTaken: string;
+          context: string;
+          outcome: string;
+          confidenceRating: number;
+          patternObserved: string;
+          loggedAt: string;
+        }>;
+        
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        
+        const outcomesThisWeek = outcomes.filter((o) => {
+          const loggedDate = new Date(o.loggedAt);
+          return loggedDate >= weekAgo && loggedDate <= today;
+        }).length;
+        
+        const sortedOutcomes = [...outcomes].sort((a, b) => 
+          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
+        );
+        
+        const lastFiveOutcomes = sortedOutcomes.slice(0, 5).map((o) => {
+          const action = actions.find((a: any) => a.id === o.actionId);
+          return {
+            actionName: action?.name || 'Unknown',
+            layer: action?.layer || 0,
+            patternObserved: o.patternObserved,
+            confidenceRating: o.confidenceRating,
+            date: o.date,
+          };
+        });
+        
+        const complianceStatus = outcomesThisWeek >= 2 ? 'green' : outcomesThisWeek === 1 ? 'amber' : 'red';
+        
+        return {
+          actionsInLibrary: actions.filter((a: any) => !a.isArchived).length,
+          outcomesThisWeek,
+          lastFiveOutcomes,
+          weeklyActionTarget: 2,
+          complianceStatus,
+        };
+      } catch {
+        return {
+          actionsInLibrary: 0,
+          outcomesThisWeek: 0,
+          lastFiveOutcomes: [],
+          weeklyActionTarget: 2,
+          complianceStatus: 'red',
+        };
+      }
+    })(),
 
     // Populated by: Review tab - stage progression data
     stage: null,
