@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   SPECIALIST_ACTIONS: 'grnd_specialist_actions',
   FIELD_LOG: 'grnd_field_log',
   FIELD_LOG_ACTIONS: 'grnd_field_log_actions',
+  LEARN_MATERIALS: 'grnd_learn_materials',
   STAGE_DATA: 'grnd_stage_data',
   MILESTONES: 'grnd_milestones',
   EDIT_HISTORY: 'grnd_edit_history',
@@ -305,6 +306,7 @@ export function getCoachContext(): {
   macros: any;
   specialists: any;
   field: any;
+  learn: any;
   stage: any;
   priorities: PrioritySignal[];
   phaseMode: {
@@ -488,6 +490,76 @@ export function getCoachContext(): {
           lastFiveOutcomes: [],
           weeklyActionTarget: 2,
           complianceStatus: 'red',
+        };
+      }
+    })(),
+
+    // Populated by: Learn tab - material library
+    learn: (() => {
+      const raw = localStorage.getItem(STORAGE_KEYS.LEARN_MATERIALS);
+      
+      if (!raw) {
+        return {
+          totalMaterials: 0,
+          materialsByLayer: {},
+          recentUploads: [],
+          materialsByMode: {},
+        };
+      }
+      
+      try {
+        const materials = JSON.parse(raw) as Array<{
+          id: string;
+          fileName: string;
+          whyUploaded: string;
+          whatYouWant: string;
+          layerServed: number;
+          modesTagged: string[];
+          uploadedAt: string;
+          isArchived: boolean;
+        }>;
+        
+        const activeMaterials = materials.filter((m) => !m.isArchived);
+        
+        const materialsByLayer = activeMaterials.reduce((acc, m) => {
+          if (!acc[m.layerServed]) acc[m.layerServed] = [];
+          acc[m.layerServed].push(m);
+          return acc;
+        }, {} as Record<number, any[]>);
+        
+        const sortedMaterials = [...activeMaterials].sort((a, b) => 
+          new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+        );
+        
+        const recentUploads = sortedMaterials.slice(0, 5).map((m) => ({
+          fileName: m.fileName,
+          whyUploaded: m.whyUploaded,
+          whatYouWant: m.whatYouWant,
+          layerServed: m.layerServed,
+          modesTagged: m.modesTagged,
+          uploadedAt: m.uploadedAt,
+        }));
+        
+        const materialsByMode = activeMaterials.reduce((acc, m) => {
+          m.modesTagged.forEach((mode) => {
+            if (!acc[mode]) acc[mode] = [];
+            acc[mode].push(m);
+          });
+          return acc;
+        }, {} as Record<string, any[]>);
+        
+        return {
+          totalMaterials: activeMaterials.length,
+          materialsByLayer,
+          recentUploads,
+          materialsByMode,
+        };
+      } catch {
+        return {
+          totalMaterials: 0,
+          materialsByLayer: {},
+          recentUploads: [],
+          materialsByMode: {},
         };
       }
     })(),

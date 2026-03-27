@@ -4,14 +4,7 @@ import Gym from '@/screens/Gym'
 import Review from '@/screens/Review'
 import Coach from '@/screens/Coach'
 import Field from '@/screens/Field'
-
-function Screen({ title }: { title: string }) {
-  return (
-    <div className="flex flex-1 items-center justify-center pb-20">
-      <div className="text-2xl font-semibold text-text-primary">{title}</div>
-    </div>
-  )
-}
+import Learn from '@/screens/Learn'
 
 function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field' | 'learn' }) {
   switch (name) {
@@ -125,7 +118,7 @@ function App() {
           <Route path="/gym" element={<Gym />} />
           <Route path="/review" element={<Review />} />
           <Route path="/field" element={<Field />} />
-          <Route path="/learn" element={<Screen title="Learn" />} />
+          <Route path="/learn" element={<Learn />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>
       </div>
