@@ -2,6 +2,8 @@
 // Scaffolds data structures and context functions for Coach integration
 
 import { detectPhaseMode } from './phaseMode';
+import { getLatestBodyStats, getStageData } from './reviewData';
+import { getGymSessions } from './gymStructure';
 
 export const STORAGE_KEYS = {
   CHECKLIST_STRUCTURE: 'grnd_checklist_structure',
@@ -345,20 +347,134 @@ export function getCoachContext(): {
   return {
     compliance,
 
-    // Populated by: Today tab - checklist structure and completion data
-    checklist: null,
+    checklist: (() => {
+      const checklistLogs: Array<{ date: string; completedIds: string[]; totalItems: number; completionPercent: number }> = [];
+      const today = new Date();
 
-    // Populated by: Today tab - sleep check-in data
-    sleep: null,
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const checklistKey = `${STORAGE_KEYS.CHECKLIST_COMPLETION}_${dayKey}`;
+        const structureKey = STORAGE_KEYS.CHECKLIST_STRUCTURE;
+
+        const completionRaw = localStorage.getItem(checklistKey);
+        const structureRaw = localStorage.getItem(structureKey);
+
+        if (completionRaw) {
+          try {
+            const completion = JSON.parse(completionRaw);
+            const completedIds = completion.completedIds || [];
+            let totalItems = 28;
+            if (structureRaw) {
+              try {
+                const structure = JSON.parse(structureRaw);
+                const allItems = structure.flatMap ? structure.flatMap((s: any) => s.items || []) : [];
+                if (allItems.length > 0) totalItems = allItems.length;
+              } catch { /* use default */ }
+            }
+            const completionPercent = Math.round((completedIds.length / totalItems) * 100);
+            checklistLogs.push({ date: dayKey, completedIds, totalItems, completionPercent });
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+
+      return checklistLogs.length > 0 ? checklistLogs : null;
+    })(),
+
+    sleep: (() => {
+      const sleepLogs: Array<{ date: string; bedTime: string; wakeTime: string; durationMinutes: number; quality: number | null; cause: string }> = [];
+      const today = new Date();
+
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const sleepKey = `${STORAGE_KEYS.SLEEP_LOG}_${dayKey}`;
+
+        const raw = localStorage.getItem(sleepKey);
+        if (raw) {
+          try {
+            const entry = JSON.parse(raw);
+            sleepLogs.push({ date: dayKey, ...entry });
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+
+      return sleepLogs.length > 0 ? sleepLogs : null;
+    })(),
 
     // Populated by: Today tab - mood/energy logging (Phase 3b Step 2)
     mood: moodLogs,
 
-    // Populated by: Gym tab - session logs, exercises, injuries
-    gym: null,
+    gym: (() => {
+      const sessions = getGymSessions();
+      if (sessions.length === 0) return null;
 
-    // Populated by: Review tab - body metrics tracking
-    body: null,
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+
+      const recentSessions = sessions.filter(s => new Date(s.date) >= thirtyDaysAgo);
+      const lastThree = [...sessions].reverse().slice(0, 3);
+
+      return {
+        totalSessionsLast30Days: recentSessions.length,
+        lastThreeSessions: lastThree.map(s => ({
+          date: s.date,
+          dayType: s.dayType,
+          energyRating: s.energyRating,
+          exerciseCount: s.exercises.length,
+          completedSets: s.exercises.reduce((total, ex) => total + ex.sets.filter(set => set.completed).length, 0),
+          injuriesFlagged: [...new Set(s.exercises.flatMap(ex => ex.injuryFlags))],
+        })),
+        sessionFrequencyPerWeek: Math.round((recentSessions.length / 30) * 7 * 10) / 10,
+      };
+    })(),
+
+    body: (() => {
+      const latest = getLatestBodyStats();
+      if (!latest) return null;
+
+      const raw = localStorage.getItem(STORAGE_KEYS.BODY_LOG);
+      let trend: { weightChange7Days: number | null; weightChange30Days: number | null } = { weightChange7Days: null, weightChange30Days: null };
+
+      if (raw) {
+        try {
+          const log = JSON.parse(raw) as Array<{ date: string; weight?: number }>;
+          const sorted = [...log].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+          if (sorted.length >= 2 && latest.weight) {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const entry7 = sorted.filter(e => new Date(e.date) >= sevenDaysAgo && e.weight)[0];
+            const entry30 = sorted.filter(e => new Date(e.date) >= thirtyDaysAgo && e.weight)[0];
+
+            if (entry7?.weight) trend.weightChange7Days = Math.round((latest.weight - entry7.weight) * 10) / 10;
+            if (entry30?.weight) trend.weightChange30Days = Math.round((latest.weight - entry30.weight) * 10) / 10;
+          }
+        } catch { /* skip */ }
+      }
+
+      return {
+        latest,
+        trend,
+        lastLoggedDate: latest.date,
+      };
+    })(),
 
     // Populated by: Today tab - macro tracking (Phase 3b Step 4)
     macros: (() => {
@@ -418,8 +534,52 @@ export function getCoachContext(): {
       return macroLogs;
     })(),
 
-    // Populated by: Review tab - specialist actions and outcomes
-    specialists: null,
+    specialists: (() => {
+      const raw = localStorage.getItem(STORAGE_KEYS.SPECIALIST_ACTIONS);
+      if (!raw) {
+        return {
+          overdue: [
+            { name: 'GP — LDL ferritin sleep apnea BP', daysOverdue: 'unknown' },
+            { name: 'DEXA scan', daysOverdue: 'unknown' },
+            { name: 'Specialist barber', daysOverdue: 'unknown' },
+            { name: 'Personal stylist', daysOverdue: 'unknown' },
+            { name: 'Voice coach', daysOverdue: 'unknown' },
+            { name: 'Toastmasters', daysOverdue: 'unknown' },
+            { name: 'BJJ/Muay Thai research', daysOverdue: 'unknown' },
+            { name: 'Dermatologist', daysOverdue: 'unknown' },
+          ],
+          booked: [
+            { name: 'Sports Dietitian', bookedDate: '26 March 2026', followUp: '7 May 2026' },
+            { name: 'Physio', status: 'active weekly' },
+          ],
+        };
+      }
+
+      try {
+        const actions = JSON.parse(raw) as Array<{
+          name: string;
+          status: string;
+          dueDate: string | null;
+          bookedDate: string | null;
+        }>;
+
+        const today = new Date();
+        const overdue = actions
+          .filter(a => a.status === 'pending')
+          .map(a => ({
+            name: a.name,
+            daysOverdue: a.dueDate
+              ? Math.floor((today.getTime() - new Date(a.dueDate).getTime()) / (1000 * 60 * 60 * 24))
+              : 'unknown',
+          }));
+
+        const booked = actions.filter(a => a.status === 'booked' || a.status === 'completed');
+
+        return { overdue, booked };
+      } catch {
+        return null;
+      }
+    })(),
 
     // Populated by: Field tab - field actions and confidence ratings
     field: (() => {
@@ -564,11 +724,56 @@ export function getCoachContext(): {
       }
     })(),
 
-    // Populated by: Review tab - stage progression data
-    stage: null,
+    stage: (() => {
+      const stageData = getStageData();
+      const latest = getLatestBodyStats();
 
-    // Populated by: Cross-tab analysis - priority signals from all streams
-    priorities: [],
+      return {
+        currentStage: stageData.currentStage,
+        currentStageName: stageData.stages.find(s => s.number === stageData.currentStage)?.name || 'Build',
+        workReadiness: stageData.workReadiness,
+        unlockConditions: stageData.stages[0].unlockConditions,
+        currentStats: latest ? {
+          weight: latest.weight,
+          bodyFat: latest.bodyFat,
+          waist: latest.waist,
+        } : null,
+      };
+    })(),
+
+    priorities: (() => {
+      const signals: PrioritySignal[] = [];
+      const snap = compliance;
+
+      const foundationItems = ['sleep', 'macros', 'checklist'];
+      const streamKeys = ['checklist', 'sleep', 'mood', 'gym', 'macros'] as const;
+
+      streamKeys.forEach(key => {
+        const stream = snap[key];
+        if (!stream) return;
+
+        if (stream.status === 'red' || stream.status === 'amber') {
+          signals.push({
+            exists: true,
+            item: stream.name,
+            observation: `${stream.name} is ${stream.status} — ${stream.value}`,
+            daysCount: 0,
+            layer: foundationItems.includes(key) ? 'foundation' : 'tracking',
+            threshold: stream.status === 'red' ? 1 : 0.6,
+          });
+        }
+      });
+
+      signals.sort((a, b) => {
+        const aIsFoundation = a.layer === 'foundation' ? 1 : 0;
+        const bIsFoundation = b.layer === 'foundation' ? 1 : 0;
+        const aIsRed = a.threshold === 1 ? 1 : 0;
+        const bIsRed = b.threshold === 1 ? 1 : 0;
+        return (bIsFoundation + bIsRed) - (aIsFoundation + aIsRed);
+      });
+
+      return signals.slice(0, 1);
+    })(),
 
     // Phase mode detection
     phaseMode: (() => {
