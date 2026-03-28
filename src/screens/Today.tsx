@@ -87,6 +87,7 @@ function Checkbox({ checked }: { checked: boolean }) {
 }
 
 export default function Today() {
+  // @ts-expect-error - navigate was used for Gym section which is now removed
   const navigate = useNavigate();
   const dayKey = useMemo(() => getGrndDayKey(), []);
   const completionKey = `grnd_checklist_${dayKey}`;
@@ -123,6 +124,7 @@ export default function Today() {
     energy: null,
   });
   const [sleepSaved, setSleepSaved] = useState<SleepLog | null>(null);
+  // @ts-expect-error - sleepEditing no longer needed since sleep section only shows when !sleepSaved
   const [sleepEditing, setSleepEditing] = useState(true);
 
   // Mood/Energy log state - per section
@@ -151,6 +153,15 @@ export default function Today() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [editTargetsMode, setEditTargetsMode] = useState(false);
   const [tempTargets, setTempTargets] = useState<MacroTargets>({ calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 });
+  
+  // Dismissible sections and deviation tracking
+  const [focusDismissed, setFocusDismissed] = useState(false);
+  const [proofDismissed, setProofDismissed] = useState(false);
+  const [sleepPopupDismissed, setSleepPopupDismissed] = useState(false);
+  // @ts-expect-error - Will be used for deviation UI (CHANGE 7)
+  const [deviationMealId, setDeviationMealId] = useState<string | null>(null);
+  const [deviationText, setDeviationText] = useState('');
+  const [foodHistory, setFoodHistory] = useState<string[]>([]);
 
   // Edit mode state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -189,6 +200,42 @@ export default function Today() {
   const [swipedFocusItem, setSwipedFocusItem] = useState<string | null>(null);
 
   useEffect(() => {
+    // Load dismiss flags
+    const focusDismissKey = `grnd_focus_dismissed_${dayKey}`;
+    if (localStorage.getItem(focusDismissKey) === 'true') {
+      setFocusDismissed(true);
+    }
+    
+    const proofDismissKey = `grnd_proof_dismissed_${dayKey}`;
+    if (localStorage.getItem(proofDismissKey) === 'true') {
+      setProofDismissed(true);
+    }
+    
+    const sleepPopupDismissKey = `grnd_sleep_popup_dismissed_${dayKey}`;
+    if (localStorage.getItem(sleepPopupDismissKey) === 'true') {
+      setSleepPopupDismissed(true);
+    }
+    
+    // Load food history
+    const foodHistoryRaw = localStorage.getItem('grnd_food_history');
+    if (foodHistoryRaw) {
+      try {
+        setFoodHistory(JSON.parse(foodHistoryRaw) as string[]);
+      } catch {
+        setFoodHistory([]);
+      }
+    }
+    
+    // Sleep auto-popup check (4:30am - 9:00am window)
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const isInWindow = (hour === 4 && minute >= 30) || (hour > 4 && hour < 9);
+    
+    if (isInWindow && !sleepSaved && !sleepPopupDismissed) {
+      setOpenSection('sleep');
+    }
+    
     // Load causes library
     const storedCauses = localStorage.getItem(STORAGE_KEYS.MOOD_CAUSES);
     if (storedCauses) {
@@ -358,8 +405,14 @@ export default function Today() {
       setMacroEntries(updated);
       localStorage.setItem(macroKey, JSON.stringify(updated));
       
-      // Link to checklist - toggle matching item
-      const matchingItem = allItems.find((item) => item.name === meal.name);
+      // Link to checklist - toggle matching item by purpose or name
+      const matchingItem = allItems.find((item) => {
+        const itemPurpose = item.purpose?.toLowerCase() || '';
+        const mealPurpose = meal.purpose?.toLowerCase() || '';
+        const itemName = item.name.toLowerCase();
+        const mealName = meal.name.toLowerCase();
+        return itemPurpose.includes(mealPurpose) || itemName.includes(mealName) || mealName.includes(itemName);
+      });
       if (matchingItem) {
         if (!existing.confirmed) {
           // Confirming meal - check checklist item
@@ -388,12 +441,48 @@ export default function Today() {
       setMacroEntries(updated);
       localStorage.setItem(macroKey, JSON.stringify(updated));
       
-      // Link to checklist - check matching item
-      const matchingItem = allItems.find((item) => item.name === meal.name);
+      // Link to checklist - check matching item by purpose or name
+      const matchingItem = allItems.find((item) => {
+        const itemPurpose = item.purpose?.toLowerCase() || '';
+        const mealPurpose = meal.purpose?.toLowerCase() || '';
+        const itemName = item.name.toLowerCase();
+        const mealName = meal.name.toLowerCase();
+        return itemPurpose.includes(mealPurpose) || itemName.includes(mealName) || mealName.includes(itemName);
+      });
       if (matchingItem && !completedIds.includes(matchingItem.id)) {
         setCompletedIds((prev) => [...prev, matchingItem.id]);
       }
     }
+  };
+
+  // @ts-expect-error - Will be used for deviation UI (CHANGE 7)
+  const handleDeviationSave = (mealId: string) => {
+    if (!deviationText.trim()) return;
+
+    // Save to food history
+    const updatedHistory = [deviationText.trim(), ...foodHistory.filter(h => h !== deviationText.trim())].slice(0, 50);
+    setFoodHistory(updatedHistory);
+    localStorage.setItem('grnd_food_history', JSON.stringify(updatedHistory));
+
+    // Save deviation to macro log
+    const newEntry: MacroLogEntry = {
+      id: `deviation-${Date.now()}`,
+      name: deviationText.trim(),
+      time: new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }),
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      source: 'manual' as const,
+      confirmed: true,
+      purpose: 'Deviation',
+    };
+    const updated = [...macroEntries, newEntry];
+    setMacroEntries(updated);
+    localStorage.setItem(macroKey, JSON.stringify(updated));
+
+    setDeviationMealId(null);
+    setDeviationText('');
   };
 
   const handleToggleItem = (id: string) => {
@@ -829,22 +918,36 @@ export default function Today() {
         <div className="text-[12px] text-text-secondary">{formatHeaderDate()}</div>
       </div>
 
-      <Card>
+      {!focusDismissed && focusState.completed.length < 2 && (
+        <Card>
         <button
           type="button"
           onClick={() => handleSectionToggle('focus')}
           className="flex w-full items-center justify-between"
         >
           <div className="text-base font-bold text-white">🎯 Today's Focus</div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 text-zinc-400 transition-transform ${openSection === 'focus' ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                localStorage.setItem(`grnd_focus_dismissed_${dayKey}`, 'true');
+                setFocusDismissed(true);
+              }}
+              className="text-zinc-400 hover:text-white text-sm"
+            >
+              ✕
+            </button>
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-5 w-5 text-zinc-400 transition-transform ${openSection === 'focus' ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </button>
         {openSection === 'focus' && (
           <div className="mt-3 space-y-3">
@@ -910,23 +1013,38 @@ export default function Today() {
           </div>
         )}
       </Card>
+      )}
 
-      <Card>
+      {!proofDismissed && yesterdayProof && (
+        <Card>
         <button
           type="button"
           onClick={() => handleSectionToggle('proof')}
           className="flex w-full items-center justify-between"
         >
           <div className="text-base font-bold text-white">⚡ Yesterday's Proof</div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'proof' ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                localStorage.setItem(`grnd_proof_dismissed_${dayKey}`, 'true');
+                setProofDismissed(true);
+              }}
+              className="text-zinc-400 hover:text-white text-sm"
+            >
+              ✕
+            </button>
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'proof' ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </button>
         {openSection === 'proof' && (
           <div className="mt-3 text-sm text-text-primary">
@@ -938,8 +1056,10 @@ export default function Today() {
           </div>
         )}
       </Card>
+      )}
 
-      <Card>
+      {!sleepSaved && (
+        <Card>
         <button
           type="button"
           onClick={() => handleSectionToggle('sleep')}
@@ -957,41 +1077,6 @@ export default function Today() {
           </svg>
         </button>
         {openSection === 'sleep' && (
-          <div className="mt-3">
-            {!sleepEditing && sleepSaved ? (
-              <button
-                type="button"
-                onClick={() => setSleepEditing(true)}
-                className="mb-3 text-sm font-semibold text-primary"
-              >
-                Edit
-              </button>
-            ) : null}
-
-        {!sleepEditing && sleepSaved ? (
-          <div className="mt-3 space-y-3">
-            <div className="flex gap-3">
-              <div className="flex-1 rounded-brand bg-background p-3">
-                <div className="text-[11px] tracking-widest text-text-secondary">BED TIME</div>
-                <div className="mt-1 text-sm font-semibold text-text-primary">{sleepSaved.bedTime}</div>
-              </div>
-              <div className="flex-1 rounded-brand bg-background p-3">
-                <div className="text-[11px] tracking-widest text-text-secondary">WAKE TIME</div>
-                <div className="mt-1 text-sm font-semibold text-text-primary">{sleepSaved.wakeTime}</div>
-              </div>
-            </div>
-
-            <div className="rounded-brand bg-background p-3">
-              <div className="text-[11px] tracking-widest text-text-secondary">SLEEP DURATION</div>
-              <div className="mt-1 text-lg font-bold text-primary">{formatDuration(sleepDurationMinutes)}</div>
-            </div>
-
-            <div className="rounded-brand bg-background p-3">
-              <div className="text-[11px] tracking-widest text-text-secondary">ENERGY RATING</div>
-              <div className="mt-2 text-sm font-semibold text-text-primary">{sleepSaved.energy ?? '—'}</div>
-            </div>
-          </div>
-        ) : (
           <div className="mt-3 space-y-4">
             <div className="flex gap-3">
               <label className="flex-1">
@@ -1056,9 +1141,8 @@ export default function Today() {
             </button>
           </div>
         )}
-          </div>
-        )}
       </Card>
+      )}
 
       {/* Macro Summary Card */}
       <Card>
@@ -1203,24 +1287,8 @@ export default function Today() {
       </Card>
 
       <Card>
-        <button
-          type="button"
-          onClick={() => handleSectionToggle('stats')}
-          className="flex w-full items-center justify-between"
-        >
-          <div className="text-base font-bold text-white">📊 Stats</div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'stats' ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {openSection === 'stats' && (
-          <div className="-mx-4 mt-3 overflow-x-auto px-4">
+        <div className="text-base font-bold text-white mb-3">📊 Stats</div>
+        <div className="-mx-4 overflow-x-auto px-4">
             <div className="flex w-max gap-3 pr-10">
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">WEIGHT</div>
@@ -1268,54 +1336,6 @@ export default function Today() {
           </div>
             </div>
           </div>
-        )}
-      </Card>
-
-      <Card>
-        <button
-          type="button"
-          onClick={() => handleSectionToggle('gym')}
-          className="flex w-full items-center justify-between"
-        >
-          <div className="text-base font-bold text-white">🏋️ Gym</div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'gym' ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {openSection === 'gym' && (
-          <button
-            type="button"
-            onClick={() => navigate('/gym')}
-            className="mt-3 min-h-[44px] w-full rounded-brand border border-primary bg-card px-4"
-          >
-        <div className="flex items-center gap-3">
-          <div className="text-primary">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 7v10" />
-              <path d="M18 7v10" />
-              <path d="M4 10v4" />
-              <path d="M20 10v4" />
-              <path d="M6 12h12" />
-            </svg>
-          </div>
-          <div className="flex-1 text-left">
-            <div className="font-bold text-text-primary">Push Day</div>
-            <div className="text-sm text-text-secondary">Tap to log session</div>
-          </div>
-          <div className="text-primary">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </div>
-        </div>
-          </button>
-        )}
       </Card>
 
       <Card>
