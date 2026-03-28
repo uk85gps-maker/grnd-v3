@@ -113,7 +113,7 @@ export default function Today() {
   }, [sections]);
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>('macros');
 
   // Load daily completion (ID-based)
   const [completedIds, setCompletedIds] = useState<string[]>([]);
@@ -158,7 +158,6 @@ export default function Today() {
   const [focusDismissed, setFocusDismissed] = useState(false);
   const [proofDismissed, setProofDismissed] = useState(false);
   const [sleepPopupDismissed, setSleepPopupDismissed] = useState(false);
-  // @ts-expect-error - Will be used for deviation UI (CHANGE 7)
   const [deviationMealId, setDeviationMealId] = useState<string | null>(null);
   const [deviationText, setDeviationText] = useState('');
   const [foodHistory, setFoodHistory] = useState<string[]>([]);
@@ -455,8 +454,7 @@ export default function Today() {
     }
   };
 
-  // @ts-expect-error - Will be used for deviation UI (CHANGE 7)
-  const handleDeviationSave = (mealId: string) => {
+  const handleDeviationSave = (_mealId: string) => {
     if (!deviationText.trim()) return;
 
     // Save to food history
@@ -910,6 +908,36 @@ export default function Today() {
     ? newItem.name && newItem.purpose && newItem.consequence
     : newItem.name && newItem.time && newItem.purpose && newItem.consequence;
 
+  // CHANGE 10: Dynamically load meal list from checklist structure
+  const dynamicMealList = useMemo(() => {
+    const mealKeywords = ['meal', 'food', 'eat', 'breakfast', 'lunch', 'dinner', 'shake', 'protein', 'snack', 'apple', 'egg', 'tofu', 'parshad'];
+    
+    const mealItems = allItems.filter((item) => {
+      const purposeLower = item.purpose?.toLowerCase() || '';
+      const nameLower = item.name.toLowerCase();
+      return mealKeywords.some(keyword => 
+        purposeLower.includes(keyword) || nameLower.includes(keyword)
+      );
+    });
+
+    // If we found meal items in checklist, convert them to MealPlanItem format
+    if (mealItems.length > 0) {
+      return mealItems.map((item): MealPlanItem => ({
+        id: item.id,
+        name: item.name,
+        time: item.time || '12:00',
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        purpose: item.purpose || 'Meal from checklist',
+      }));
+    }
+
+    // Fallback to hardcoded defaults
+    return mealPlanDefaults;
+  }, [allItems, mealPlanDefaults]);
+
   return (
     <div className="flex flex-1 flex-col gap-4 pb-20">
       <div className="flex items-center justify-between">
@@ -1202,35 +1230,112 @@ export default function Today() {
 
         {/* Meal List */}
         <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto">
-          {mealPlanDefaults.map((meal) => {
+          {dynamicMealList.map((meal) => {
             const entry = macroEntries.find((e) => e.id === meal.id);
             const isConfirmed = entry?.confirmed || false;
+            const isDeviationOpen = deviationMealId === meal.id;
+            
+            // CHANGE 8: Filter food history based on deviation text input
+            const filteredHistory = deviationText.trim()
+              ? foodHistory.filter(item => item.toLowerCase().includes(deviationText.toLowerCase()))
+              : foodHistory;
 
             return (
-              <button
-                key={meal.id}
-                type="button"
-                onClick={() => handleConfirmMeal(meal.id)}
-                className={
-                  isConfirmed
-                    ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
-                    : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
-                }
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className={isConfirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
-                      {meal.name}
+              <div key={meal.id} className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleConfirmMeal(meal.id)}
+                  className={
+                    isConfirmed
+                      ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
+                      : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
+                  }
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className={isConfirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
+                        {meal.name}
+                      </div>
+                      <div className="mt-1 text-[10px] text-text-secondary">
+                        {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
+                      </div>
                     </div>
-                    <div className="mt-1 text-[10px] text-text-secondary">
-                      {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
+                    <div className={isConfirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
+                      {isConfirmed ? '✓' : '○'}
                     </div>
                   </div>
-                  <div className={isConfirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
-                    {isConfirmed ? '✓' : '○'}
+                </button>
+
+                {/* CHANGE 7: Had something else button */}
+                {!isDeviationOpen && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeviationMealId(meal.id);
+                      setDeviationText('');
+                    }}
+                    className="w-full text-xs text-text-secondary hover:text-primary"
+                  >
+                    Had something else
+                  </button>
+                )}
+
+                {/* CHANGE 7 & 8: Deviation input with food history chips */}
+                {isDeviationOpen && (
+                  <div className="rounded-brand bg-background p-3 space-y-2">
+                    {/* CHANGE 8: Food history chips */}
+                    {filteredHistory.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {filteredHistory.slice(0, 5).map((item, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setDeviationText(item)}
+                            className="rounded-full border border-primary bg-primary/10 px-2 py-1 text-[10px] text-primary hover:bg-primary/20"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      type="text"
+                      value={deviationText}
+                      onChange={(e) => setDeviationText(e.target.value)}
+                      placeholder="What did you have instead?"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      autoFocus
+                    />
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeviationMealId(null);
+                          setDeviationText('');
+                        }}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeviationSave(meal.id)}
+                        disabled={!deviationText.trim()}
+                        className={
+                          deviationText.trim()
+                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background'
+                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-500 opacity-50 cursor-not-allowed'
+                        }
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </button>
+                )}
+              </div>
             );
           })}
 
@@ -1339,30 +1444,14 @@ export default function Today() {
       </Card>
 
       <Card>
-        <button
-          type="button"
-          onClick={() => handleSectionToggle('checklist')}
-          className="flex w-full items-center justify-between"
-        >
+        <div className="flex w-full items-center justify-between mb-4">
           <div className="text-base font-bold text-white">✅ Today's Score</div>
-          <div className="flex items-center gap-2">
-            <div className="text-base font-bold text-primary">
-              {checkedCount}/{totalCount}
-            </div>
-            <svg
-              viewBox="0 0 24 24"
-              className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'checklist' ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M19 9l-7 7-7-7" />
-            </svg>
+          <div className="text-base font-bold text-primary">
+            {checkedCount}/{totalCount}
           </div>
-        </button>
-        {openSection === 'checklist' && (
+        </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="space-y-3">
           {dailySections.map((section) => {
             const sectionChecked = section.items.filter((it) => completedIds.includes(it.id)).length;
             const isOpen = expanded[section.id] !== false;
@@ -1657,7 +1746,6 @@ export default function Today() {
             );
           })}
         </div>
-        )}
       </Card>
 
       {/* Weekly Environment Checklist */}
