@@ -166,6 +166,11 @@ export function saveBodyLogEntry(entry: BodyLogEntry): void {
   const log = getBodyLog();
   log.push(entry);
   localStorage.setItem(STORAGE_KEYS.BODY_LOG, JSON.stringify(log));
+  
+  // Sync portrait memory with latest body stats
+  import('./portraitMemory').then(({ syncPortraitWithLiveData }) => {
+    syncPortraitWithLiveData(entry.weight, entry.waist, entry.bodyFat);
+  });
 }
 
 export function getLatestBodyStats(): BodyLogEntry | null {
