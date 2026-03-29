@@ -3,6 +3,7 @@ export interface BodyLogEntry {
   weight?: number;
   bodyFat?: number;
   waist?: number;
+  neck?: number;
   restingHR?: number;
   systolic?: number;
   diastolic?: number;
