@@ -320,7 +320,7 @@ export default function Gym() {
             {getDayTypeLabel(selectedTab)}
           </div>
         </div>
-        <div className="text-xs text-text-secondary">
+        <div className="text-sm text-text-secondary">
           Next: {getDayTypeLabel(nextDay.type)} · {nextDay.date}
         </div>
       </div>
@@ -334,8 +334,8 @@ export default function Gym() {
             onClick={() => setSelectedTab(tab)}
             className={
               selectedTab === tab
-                ? 'flex-1 rounded-full bg-[#d4af37] px-4 py-2 text-xs font-bold text-black'
-                : 'flex-1 rounded-full border border-[#2a2a2a] bg-[#1e1e1e] px-4 py-2 text-xs text-zinc-400'
+                ? 'flex-1 rounded-full bg-[#d4af37] px-4 py-2 text-sm font-bold text-black'
+                : 'flex-1 rounded-full border border-[#2a2a2a] bg-[#1e1e1e] px-4 py-2 text-sm text-zinc-400'
             }
           >
             {tab.toUpperCase()}
@@ -348,7 +348,7 @@ export default function Gym() {
         <div className="mt-8 space-y-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-text-primary">Rest Day</div>
-            <div className="mt-2 text-sm text-text-secondary">
+            <div className="mt-2 text-base text-text-secondary">
               Recovery is where the growth happens. Eat clean, sleep deep.
             </div>
           </div>
@@ -378,8 +378,8 @@ export default function Gym() {
                     onClick={() => setExpandedExercise(isExpanded ? null : exercise.id)}
                   >
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-text-primary">{exercise.name}</div>
-                      <div className="mt-1 text-xs text-text-secondary">
+                      <div className="text-base font-semibold text-text-primary">{exercise.name}</div>
+                      <div className="mt-1 text-sm text-text-secondary">
                         {completedSets}/{exercise.setsTarget} sets
                       </div>
                     </div>
@@ -398,20 +398,20 @@ export default function Gym() {
                     <div className="mt-4 space-y-3">
                       {sets.map((set) => (
                         <div key={set.setNumber} className="flex items-center gap-2">
-                          <div className="w-12 shrink-0 text-xs text-text-secondary">SET {set.setNumber}</div>
+                          <div className="w-12 shrink-0 text-sm text-text-secondary">SET {set.setNumber}</div>
                           <input
                             type="number"
                             value={set.reps}
                             onChange={(e) => handleSetInput(exercise.id, set.setNumber, 'reps', e.target.value)}
                             placeholder="Reps"
-                            className="w-20 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                            className="w-20 rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                           />
                           <input
                             type="number"
                             value={set.kg}
                             onChange={(e) => handleSetInput(exercise.id, set.setNumber, 'kg', e.target.value)}
                             placeholder="KG"
-                            className="w-20 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                            className="w-20 rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                           />
                           <button
                             type="button"
@@ -432,7 +432,7 @@ export default function Gym() {
                       ))}
 
                       {/* Last Session Reference */}
-                      <div className="border-t border-text-secondary/20 pt-3 text-xs text-text-secondary">
+                      <div className="border-t border-text-secondary/20 pt-3 text-sm text-text-secondary">
                         {lastSessionExercise ? (
                           <div>
                             Last session:{' '}
@@ -454,7 +454,7 @@ export default function Gym() {
                             e.stopPropagation();
                             setEditingExercise(exercise);
                           }}
-                          className="flex-1 text-xs text-primary"
+                          className="flex-1 text-sm text-primary"
                         >
                           Edit Exercise
                         </button>
@@ -464,7 +464,7 @@ export default function Gym() {
                             e.stopPropagation();
                             setDeleteConfirm(exercise.id);
                           }}
-                          className="flex-1 text-xs text-red-500"
+                          className="flex-1 text-sm text-red-500"
                         >
                           Delete
                         </button>
@@ -479,7 +479,7 @@ export default function Gym() {
             <button
               type="button"
               onClick={() => setIsAddingExercise(true)}
-              className="w-full rounded-brand border-2 border-dashed border-text-secondary py-3 text-sm text-text-secondary"
+              className="w-full rounded-brand border-2 border-dashed border-text-secondary py-3 text-base text-text-secondary"
             >
               + Add Exercise
             </button>
@@ -487,7 +487,7 @@ export default function Gym() {
 
           {/* Energy Rating */}
           <div className="rounded-brand bg-card p-4">
-            <div className="mb-3 text-sm font-semibold text-text-primary">Energy Rating</div>
+            <div className="mb-3 text-base font-semibold text-text-primary">Energy Rating</div>
             <div className="flex items-center gap-2">
               <input
                 type="range"
@@ -500,22 +500,22 @@ export default function Gym() {
                   accentColor: '#B8960C',
                 }}
               />
-              <div className="w-8 text-center text-sm font-bold text-primary">{energyRating}</div>
+              <div className="w-8 text-center text-base font-bold text-primary">{energyRating}</div>
             </div>
           </div>
 
           {/* Injury Check-In Section */}
           <div className="rounded-brand border-2 border-text-secondary/30 bg-card p-4">
-            <div className="mb-4 text-sm font-semibold text-text-primary">Injury Check-In</div>
+            <div className="mb-4 text-base font-semibold text-text-primary">Injury Check-In</div>
             
             <div className="space-y-4">
               {Object.entries(injuryCheckIns).map(([injuryName, injury]) => (
                 <div key={injuryName} className="space-y-3 rounded-brand bg-background p-3">
-                  <div className="text-sm font-semibold text-text-primary">{injuryName}</div>
+                  <div className="text-base font-semibold text-text-primary">{injuryName}</div>
                   
                   {/* Pain Level Selector */}
                   <div>
-                    <div className="mb-2 text-xs text-text-secondary">Pain Level (1-10)</div>
+                    <div className="mb-2 text-sm text-text-secondary">Pain Level (1-10)</div>
                     <div className="flex gap-1">
                       {Array.from({ length: 10 }).map((_, i) => {
                         const level = i + 1;
@@ -549,7 +549,7 @@ export default function Gym() {
 
                   {/* Affected by Session Toggle */}
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-text-secondary">Affected by today's session?</div>
+                    <div className="text-sm text-text-secondary">Affected by today's session?</div>
                     <button
                       type="button"
                       onClick={() => {
@@ -564,8 +564,8 @@ export default function Gym() {
                       }}
                       className={
                         injury.affectedBySession
-                          ? 'rounded-full bg-primary px-3 py-1 text-xs font-semibold text-background'
-                          : 'rounded-full border border-text-secondary px-3 py-1 text-xs text-text-secondary'
+                          ? 'rounded-full bg-primary px-3 py-1 text-sm font-semibold text-background'
+                          : 'rounded-full border border-text-secondary px-3 py-1 text-sm text-text-secondary'
                       }
                     >
                       {injury.affectedBySession ? 'Yes' : 'No'}
@@ -575,7 +575,7 @@ export default function Gym() {
                   {/* Exercise Multi-Select (only if affected) */}
                   {injury.affectedBySession && (
                     <div>
-                      <div className="mb-2 text-xs text-text-secondary">Which exercises?</div>
+                      <div className="mb-2 text-sm text-text-secondary">Which exercises?</div>
                       <div className="space-y-1">
                         {currentExercises.map((ex) => {
                           const isSelected = injury.exercises.includes(ex.name);
@@ -596,8 +596,8 @@ export default function Gym() {
                               }}
                               className={
                                 isSelected
-                                  ? 'w-full rounded-brand border-2 border-primary bg-primary/10 px-3 py-2 text-left text-xs text-primary'
-                                  : 'w-full rounded-brand border border-text-secondary px-3 py-2 text-left text-xs text-text-secondary'
+                                  ? 'w-full rounded-brand border-2 border-primary bg-primary/10 px-3 py-2 text-left text-sm text-primary'
+                                  : 'w-full rounded-brand border border-text-secondary px-3 py-2 text-left text-sm text-text-secondary'
                               }
                             >
                               {ex.name}
@@ -622,7 +622,7 @@ export default function Gym() {
                               e.currentTarget.value = '';
                             }
                           }}
-                          className="w-full rounded-brand border border-text-secondary bg-card px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-secondary"
+                          className="w-full rounded-brand border border-text-secondary bg-card px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-secondary"
                         />
                       </div>
                     </div>
@@ -630,7 +630,7 @@ export default function Gym() {
 
                   {/* Notes Field */}
                   <div>
-                    <div className="mb-1 text-xs text-text-secondary">Notes (optional)</div>
+                    <div className="mb-1 text-sm text-text-secondary">Notes (optional)</div>
                     <textarea
                       value={injury.notes}
                       onChange={(e) => {
@@ -641,7 +641,7 @@ export default function Gym() {
                       }}
                       placeholder="Any additional details..."
                       rows={2}
-                      className="w-full rounded-brand bg-card px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-secondary"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-secondary"
                     />
                   </div>
                 </div>
@@ -662,9 +662,9 @@ export default function Gym() {
 
       {/* Recent Sessions */}
       <div className="mt-6">
-        <div className="mb-3 text-xs font-semibold tracking-widest text-text-secondary">RECENT SESSIONS</div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">RECENT SESSIONS</div>
         {recentSessions.length === 0 ? (
-          <div className="rounded-brand bg-card p-6 text-center text-sm text-text-secondary">
+          <div className="rounded-brand bg-card p-6 text-center text-base text-text-secondary">
             No sessions logged yet. Complete your first workout to see it here.
           </div>
         ) : (
@@ -678,14 +678,14 @@ export default function Gym() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`text-xs font-semibold ${getDayTypeColor(session.dayType)}`}>
+                    <div className={`text-sm font-semibold ${getDayTypeColor(session.dayType)}`}>
                       {session.dayType.toUpperCase()}
                     </div>
-                    <div className="text-xs text-text-secondary">
+                    <div className="text-sm text-text-secondary">
                       {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
                     {session.dayType !== 'rest' && (
-                      <div className="text-xs text-text-secondary">{getTotalSetsForSession(session)} sets</div>
+                      <div className="text-sm text-text-secondary">{getTotalSetsForSession(session)} sets</div>
                     )}
                   </div>
                   {session.energyRating > 0 && (
@@ -693,7 +693,7 @@ export default function Gym() {
                       <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
                       </svg>
-                      <span className="text-xs text-primary">{session.energyRating}</span>
+                      <span className="text-sm text-primary">{session.energyRating}</span>
                     </div>
                   )}
                 </div>
@@ -725,7 +725,7 @@ export default function Gym() {
 
             <div className="flex-1 space-y-4 overflow-y-auto px-6">
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Exercise Name</label>
+                <label className="mb-1 block text-sm text-text-secondary">Exercise Name</label>
                 <input
                   type="text"
                   value={isAddingExercise ? newExercise.name : editingExercise?.name}
@@ -734,12 +734,12 @@ export default function Gym() {
                       ? setNewExercise({ ...newExercise, name: e.target.value })
                       : setEditingExercise(editingExercise ? { ...editingExercise, name: e.target.value } : null)
                   }
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Sets Target</label>
+                <label className="mb-1 block text-sm text-text-secondary">Sets Target</label>
                 <input
                   type="number"
                   value={isAddingExercise ? newExercise.setsTarget : editingExercise?.setsTarget}
@@ -750,12 +750,12 @@ export default function Gym() {
                           editingExercise ? { ...editingExercise, setsTarget: parseInt(e.target.value) || 3 } : null
                         )
                   }
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-xs text-text-secondary">Injury Flags</label>
+                <label className="mb-2 block text-sm text-text-secondary">Injury Flags</label>
                 <div className="space-y-2">
                   {(['right_shoulder', 'right_elbow', 'left_knee', 'right_knee'] as InjuryFlag[]).map((flag) => {
                     const isSelected = isAddingExercise
@@ -769,8 +769,8 @@ export default function Gym() {
                         onClick={() => handleToggleInjuryFlag(flag, !isAddingExercise)}
                         className={
                           isSelected
-                            ? 'w-full rounded-brand border-2 border-amber-500 bg-amber-500/20 px-3 py-2 text-left text-sm text-amber-500'
-                            : 'w-full rounded-brand border border-text-secondary px-3 py-2 text-left text-sm text-text-secondary'
+                            ? 'w-full rounded-brand border-2 border-amber-500 bg-amber-500/20 px-3 py-2 text-left text-base text-amber-500'
+                            : 'w-full rounded-brand border border-text-secondary px-3 py-2 text-left text-base text-text-secondary'
                         }
                       >
                         {getInjuryFlagLabel(flag)}
@@ -781,7 +781,7 @@ export default function Gym() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Why this exercise is in the program</label>
+                <label className="mb-1 block text-sm text-text-secondary">Why this exercise is in the program</label>
                 <textarea
                   value={isAddingExercise ? newExercise.why : editingExercise?.why}
                   onChange={(e) =>
@@ -790,7 +790,7 @@ export default function Gym() {
                       : setEditingExercise(editingExercise ? { ...editingExercise, why: e.target.value } : null)
                   }
                   rows={3}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
             </div>
@@ -838,7 +838,7 @@ export default function Gym() {
         >
           <div className="w-full max-w-md rounded-t-brand bg-card p-6" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 text-lg font-bold text-text-primary">Delete Exercise?</div>
-            <div className="mb-6 text-sm text-text-secondary">
+            <div className="mb-6 text-base text-text-secondary">
               This will remove the exercise from your program. This action cannot be undone.
             </div>
             <div className="flex gap-3">
@@ -875,7 +875,7 @@ export default function Gym() {
               <div className="mb-2 text-lg font-bold text-text-primary">
                 {getDayTypeLabel(viewingSession.dayType)}
               </div>
-              <div className="text-xs text-text-secondary">
+              <div className="text-sm text-text-secondary">
                 {new Date(viewingSession.date).toLocaleDateString('en-US', {
                   month: 'long',
                   day: 'numeric',
@@ -886,16 +886,16 @@ export default function Gym() {
 
             <div className="flex-1 space-y-3 overflow-y-auto px-6">
               {viewingSession.dayType === 'rest' ? (
-                <div className="text-center text-sm text-text-secondary">Rest day logged</div>
+                <div className="text-center text-base text-text-secondary">Rest day logged</div>
               ) : (
                 viewingSession.exercises.map((ex, idx) => (
                   <div key={idx} className="rounded-brand bg-background p-3">
-                    <div className="mb-2 text-sm font-semibold text-text-primary">{ex.name}</div>
+                    <div className="mb-2 text-base font-semibold text-text-primary">{ex.name}</div>
                     <div className="space-y-1">
                       {ex.sets
                         .filter((s) => s.completed)
                         .map((set, setIdx) => (
-                          <div key={setIdx} className="text-xs text-text-secondary">
+                          <div key={setIdx} className="text-sm text-text-secondary">
                             Set {set.setNumber}: {set.reps} reps × {set.kg}kg
                           </div>
                         ))}
@@ -907,12 +907,12 @@ export default function Gym() {
               {viewingSession.energyRating > 0 && (
                 <div className="rounded-brand bg-background p-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-text-secondary">Energy Rating</div>
+                    <div className="text-base text-text-secondary">Energy Rating</div>
                     <div className="flex items-center gap-1">
                       <svg className="h-4 w-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
                       </svg>
-                      <span className="text-sm font-bold text-primary">{viewingSession.energyRating}</span>
+                      <span className="text-base font-bold text-primary">{viewingSession.energyRating}</span>
                     </div>
                   </div>
                 </div>

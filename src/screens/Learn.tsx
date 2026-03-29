@@ -34,7 +34,7 @@ function LayerBadge({ layer }: { layer: 2 | 3 | 4 | 5 | 6 | 7 }) {
   };
   const { label, color } = config[layer];
   return (
-    <span className={`inline-block rounded-brand border px-2 py-1 text-xs font-semibold ${color}`}>
+    <span className={`inline-block rounded-brand border px-2 py-1 text-sm font-semibold ${color}`}>
       L{layer} {label}
     </span>
   );
@@ -270,15 +270,15 @@ export default function Learn() {
     <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 z-10 bg-background px-4 py-4">
         <h1 className="text-2xl font-bold text-text-primary">Learn</h1>
-        <p className="text-sm text-zinc-400">📚 Material Library</p>
+        <p className="text-base text-zinc-400">📚 Material Library</p>
       </div>
 
       <div className="space-y-3 px-4">
         {materials.length === 0 ? (
           <Card>
             <div className="py-8 text-center">
-              <div className="text-base font-semibold text-text-primary">Nothing here yet. Upload your first piece of material.</div>
-              <div className="mt-2 text-sm text-text-secondary">
+              <div className="text-lg font-semibold text-text-primary">Nothing here yet. Upload your first piece of material.</div>
+              <div className="mt-2 text-base text-text-secondary">
                 PDFs, screenshots, voice notes — anything that helps Coach understand your world better.
               </div>
               <label className="mt-4 inline-block min-h-[44px] cursor-pointer rounded-brand border border-primary px-6 py-2 text-primary">
@@ -302,25 +302,25 @@ export default function Learn() {
                   <FileTypeIcon type={material.fileType} />
                   <div className="flex-1">
                     <div className="font-semibold text-text-primary">{material.fileName}</div>
-                    <div className="mt-1 truncate text-sm text-text-secondary">{material.whyUploaded}</div>
+                    <div className="mt-1 truncate text-base text-text-secondary">{material.whyUploaded}</div>
                     <div className="mt-2">
                       <LayerBadge layer={material.layerServed} />
                     </div>
                     {material.modesTagged.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {material.modesTagged.slice(0, 3).map((mode, i) => (
-                          <span key={i} className="rounded-brand bg-primary/10 px-2 py-1 text-xs text-primary">
+                          <span key={i} className="rounded-brand bg-primary/10 px-2 py-1 text-sm text-primary">
                             {mode}
                           </span>
                         ))}
                         {material.modesTagged.length > 3 && (
-                          <span className="rounded-brand bg-primary/10 px-2 py-1 text-xs text-primary">
+                          <span className="rounded-brand bg-primary/10 px-2 py-1 text-sm text-primary">
                             +{material.modesTagged.length - 3} more
                           </span>
                         )}
                       </div>
                     )}
-                    <div className="mt-2 text-xs text-text-secondary">
+                    <div className="mt-2 text-sm text-text-secondary">
                       {formatFileSize(material.fileSize)} · {formatDate(material.uploadedAt)}
                     </div>
                   </div>
@@ -358,14 +358,14 @@ export default function Learn() {
             </div>
 
             {error && (
-              <div className="mx-4 mb-4 rounded-brand bg-red-500/10 px-3 py-2 text-sm text-red-500">
+              <div className="mx-4 mb-4 rounded-brand bg-red-500/10 px-3 py-2 text-base text-red-500">
                 {error}
               </div>
             )}
 
             <div className="space-y-4 px-4 pb-4">
               <div>
-                <label className="block text-sm font-semibold text-text-primary">File Name</label>
+                <label className="block text-base font-semibold text-text-primary">File Name</label>
                 <input
                   type="text"
                   value={uploadForm.fileName}
@@ -375,7 +375,7 @@ export default function Learn() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Why Did You Upload This?</label>
+                <label className="block text-base font-semibold text-text-primary">Why Did You Upload This?</label>
                 <textarea
                   value={uploadForm.whyUploaded}
                   onChange={(e) => setUploadForm({ ...uploadForm, whyUploaded: e.target.value })}
@@ -386,7 +386,7 @@ export default function Learn() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">What Do You Want Coach to Know?</label>
+                <label className="block text-base font-semibold text-text-primary">What Do You Want Coach to Know?</label>
                 <textarea
                   value={uploadForm.whatYouWant}
                   onChange={(e) => setUploadForm({ ...uploadForm, whatYouWant: e.target.value })}
@@ -397,7 +397,7 @@ export default function Learn() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Layer Served</label>
+                <label className="block text-base font-semibold text-text-primary">Layer Served</label>
                 <div className="mt-2 space-y-2">
                   {([2, 3, 4, 5, 6, 7] as const).map((layer) => (
                     <button
@@ -415,7 +415,7 @@ export default function Learn() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Mode Tags (Optional)</label>
+                <label className="block text-base font-semibold text-text-primary">Mode Tags (Optional)</label>
                 <input
                   type="text"
                   value={uploadForm.modesTagged.join(', ')}
@@ -428,7 +428,7 @@ export default function Learn() {
                   className="mt-1 w-full rounded-brand border border-text-secondary bg-background px-3 py-2 text-text-primary"
                   placeholder="e.g., Phase Mode, Confidence Building"
                 />
-                <div className="mt-1 text-xs text-text-secondary">Separate multiple tags with commas</div>
+                <div className="mt-1 text-sm text-text-secondary">Separate multiple tags with commas</div>
               </div>
             </div>
 
@@ -479,24 +479,24 @@ export default function Learn() {
                 <FileTypeIcon type={selectedMaterial.fileType} />
                 <div className="flex-1">
                   <div className="font-semibold text-text-primary">{selectedMaterial.fileName}</div>
-                  <div className="mt-1 text-xs text-text-secondary">
+                  <div className="mt-1 text-sm text-text-secondary">
                     {formatFileSize(selectedMaterial.fileSize)} · {formatDate(selectedMaterial.uploadedAt)}
                   </div>
                 </div>
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-text-primary">Why Uploaded</div>
-                <div className="mt-1 text-sm text-text-secondary">{selectedMaterial.whyUploaded}</div>
+                <div className="text-base font-semibold text-text-primary">Why Uploaded</div>
+                <div className="mt-1 text-base text-text-secondary">{selectedMaterial.whyUploaded}</div>
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-text-primary">What Coach Should Know</div>
-                <div className="mt-1 text-sm text-text-secondary">{selectedMaterial.whatYouWant}</div>
+                <div className="text-base font-semibold text-text-primary">What Coach Should Know</div>
+                <div className="mt-1 text-base text-text-secondary">{selectedMaterial.whatYouWant}</div>
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-text-primary">Layer</div>
+                <div className="text-base font-semibold text-text-primary">Layer</div>
                 <div className="mt-1">
                   <LayerBadge layer={selectedMaterial.layerServed} />
                 </div>
@@ -504,10 +504,10 @@ export default function Learn() {
 
               {selectedMaterial.modesTagged.length > 0 && (
                 <div>
-                  <div className="text-sm font-semibold text-text-primary">Modes</div>
+                  <div className="text-base font-semibold text-text-primary">Modes</div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {selectedMaterial.modesTagged.map((mode, i) => (
-                      <span key={i} className="rounded-brand bg-primary/10 px-2 py-1 text-xs text-primary">
+                      <span key={i} className="rounded-brand bg-primary/10 px-2 py-1 text-sm text-primary">
                         {mode}
                       </span>
                     ))}
@@ -542,8 +542,8 @@ export default function Learn() {
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-brand bg-card p-4">
-            <div className="text-base font-semibold text-text-primary">Delete Material?</div>
-            <div className="mt-2 text-sm text-text-secondary">
+            <div className="text-lg font-semibold text-text-primary">Delete Material?</div>
+            <div className="mt-2 text-base text-text-secondary">
               This will permanently delete the file from storage. This cannot be undone.
             </div>
             <div className="mt-4 flex gap-3">

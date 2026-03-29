@@ -33,7 +33,7 @@ function LayerBadge({ layer }: { layer: 3 | 4 | 5 | 7 }) {
   };
   const { label, color } = config[layer];
   return (
-    <span className={`inline-block rounded-brand border px-2 py-1 text-xs font-semibold ${color}`}>
+    <span className={`inline-block rounded-brand border px-2 py-1 text-sm font-semibold ${color}`}>
       L{layer} {label}
     </span>
   );
@@ -251,7 +251,7 @@ LAYER: ${action.layer}`;
     <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 z-10 bg-background px-4 py-4">
         <h1 className="text-2xl font-bold text-text-primary">Field</h1>
-        <p className="text-sm text-text-secondary">Mission log & evidence case file</p>
+        <p className="text-base text-text-secondary">Mission log & evidence case file</p>
       </div>
 
       <div className="space-y-6 px-4">
@@ -261,7 +261,7 @@ LAYER: ${action.layer}`;
             <button
               type="button"
               onClick={openAddAction}
-              className="min-h-[44px] rounded-brand bg-primary px-4 text-sm font-semibold text-white"
+              className="min-h-[44px] rounded-brand bg-primary px-4 text-base font-semibold text-white"
             >
               + Add Mission
             </button>
@@ -270,8 +270,8 @@ LAYER: ${action.layer}`;
           {activeActions.length === 0 ? (
             <Card>
               <div className="py-8 text-center">
-                <div className="text-base font-semibold text-text-primary">No missions yet. Add your first one.</div>
-                <div className="mt-2 text-sm text-text-secondary">
+                <div className="text-lg font-semibold text-text-primary">No missions yet. Add your first one.</div>
+                <div className="mt-2 text-base text-text-secondary">
                   A mission is one real-world action that pushes against a pattern. Start with something uncomfortable but achievable.
                 </div>
                 <button
@@ -303,7 +303,7 @@ LAYER: ${action.layer}`;
                         ⋯
                       </button>
                     </div>
-                    <div className="text-sm text-text-secondary">
+                    <div className="text-base text-text-secondary">
                       <div>
                         <span className="font-semibold">Targets:</span> {action.fearOrPattern}
                       </div>
@@ -312,7 +312,7 @@ LAYER: ${action.layer}`;
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <div className="text-xs text-text-secondary">
+                      <div className="text-sm text-text-secondary">
                         <div>Difficulty</div>
                         <div className="mt-1">
                           <RatingCircles rating={action.difficultyRating} />
@@ -321,7 +321,7 @@ LAYER: ${action.layer}`;
                       <button
                         type="button"
                         onClick={() => openLogOutcome(action)}
-                        className="min-h-[44px] rounded-brand bg-primary px-4 text-sm font-semibold text-white"
+                        className="min-h-[44px] rounded-brand bg-primary px-4 text-base font-semibold text-white"
                       >
                         Log Outcome
                       </button>
@@ -338,7 +338,7 @@ LAYER: ${action.layer}`;
           {outcomes.length === 0 ? (
             <Card>
               <div className="py-8 text-center">
-                <div className="text-base font-semibold text-text-primary">Nothing logged yet. Complete a mission and come back.</div>
+                <div className="text-lg font-semibold text-text-primary">Nothing logged yet. Complete a mission and come back.</div>
               </div>
             </Card>
           ) : (
@@ -355,7 +355,7 @@ LAYER: ${action.layer}`;
                     >
                       <div className="flex items-center justify-between">
                         <LayerBadge layer={layer} />
-                        <div className="text-sm text-text-secondary">{layerOutcomes.length} logged</div>
+                        <div className="text-base text-text-secondary">{layerOutcomes.length} logged</div>
                       </div>
                     </button>
                     {isExpanded && (
@@ -367,9 +367,9 @@ LAYER: ${action.layer}`;
                             <div key={outcome.id} className="rounded-brand bg-background p-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <div className="text-sm font-semibold text-text-primary">{action.name}</div>
-                                  <div className="mt-1 text-xs text-text-secondary">{outcome.date}</div>
-                                  <div className="mt-2 text-sm text-text-primary">
+                                  <div className="text-base font-semibold text-text-primary">{action.name}</div>
+                                  <div className="mt-1 text-sm text-text-secondary">{outcome.date}</div>
+                                  <div className="mt-2 text-base text-text-primary">
                                     <div>
                                       <span className="font-semibold">Action:</span> {outcome.actionTaken}
                                     </div>
@@ -380,7 +380,7 @@ LAYER: ${action.layer}`;
                                       <span className="font-semibold">Pattern:</span> {outcome.patternObserved}
                                     </div>
                                   </div>
-                                  <div className="mt-2 text-xs text-text-secondary">
+                                  <div className="mt-2 text-sm text-text-secondary">
                                     Confidence: {outcome.confidenceRating}/5
                                   </div>
                                 </div>
@@ -410,7 +410,7 @@ LAYER: ${action.layer}`;
           {sortedOutcomes.length === 0 ? (
             <Card>
               <div className="py-8 text-center">
-                <div className="text-base font-semibold text-text-primary">No history yet.</div>
+                <div className="text-lg font-semibold text-text-primary">No history yet.</div>
               </div>
             </Card>
           ) : (
@@ -423,11 +423,11 @@ LAYER: ${action.layer}`;
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <div className="text-sm font-semibold text-text-primary">{action.name}</div>
+                          <div className="text-base font-semibold text-text-primary">{action.name}</div>
                           <LayerBadge layer={action.layer} />
                         </div>
-                        <div className="mt-1 text-xs text-text-secondary">{outcome.date}</div>
-                        <div className="mt-2 text-sm text-text-primary">
+                        <div className="mt-1 text-sm text-text-secondary">{outcome.date}</div>
+                        <div className="mt-2 text-base text-text-primary">
                           <div>
                             <span className="font-semibold">Action:</span> {outcome.actionTaken}
                           </div>
@@ -446,7 +446,7 @@ LAYER: ${action.layer}`;
                             </div>
                           )}
                         </div>
-                        <div className="mt-2 text-xs text-text-secondary">Confidence: {outcome.confidenceRating}/5</div>
+                        <div className="mt-2 text-sm text-text-secondary">Confidence: {outcome.confidenceRating}/5</div>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -495,7 +495,7 @@ LAYER: ${action.layer}`;
 
             <div className="space-y-4 px-4 pb-4">
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Action Name</label>
+                <label className="block text-base font-semibold text-text-primary">Action Name</label>
                 <input
                   type="text"
                   value={actionForm.name}
@@ -506,7 +506,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Layer</label>
+                <label className="block text-base font-semibold text-text-primary">Layer</label>
                 <div className="mt-2 space-y-2">
                   {([3, 4, 5, 7] as const).map((layer) => (
                     <button
@@ -524,7 +524,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Fear or Pattern Being Targeted</label>
+                <label className="block text-base font-semibold text-text-primary">Fear or Pattern Being Targeted</label>
                 <textarea
                   value={actionForm.fearOrPattern}
                   onChange={(e) => setActionForm({ ...actionForm, fearOrPattern: e.target.value })}
@@ -535,7 +535,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Success Definition</label>
+                <label className="block text-base font-semibold text-text-primary">Success Definition</label>
                 <textarea
                   value={actionForm.successDefinition}
                   onChange={(e) => setActionForm({ ...actionForm, successDefinition: e.target.value })}
@@ -546,7 +546,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Difficulty Rating</label>
+                <label className="block text-base font-semibold text-text-primary">Difficulty Rating</label>
                 <div className="mt-2">
                   <RatingCircles
                     rating={actionForm.difficultyRating}
@@ -591,12 +591,12 @@ LAYER: ${action.layer}`;
                   ✕
                 </button>
               </div>
-              <div className="mt-1 text-sm text-text-secondary">{loggingOutcomeFor.name}</div>
+              <div className="mt-1 text-base text-text-secondary">{loggingOutcomeFor.name}</div>
             </div>
 
             <div className="space-y-4 px-4 pb-4">
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Date</label>
+                <label className="block text-base font-semibold text-text-primary">Date</label>
                 <input
                   type="date"
                   value={outcomeForm.date}
@@ -606,7 +606,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">What Action Did You Take?</label>
+                <label className="block text-base font-semibold text-text-primary">What Action Did You Take?</label>
                 <textarea
                   value={outcomeForm.actionTaken}
                   onChange={(e) => setOutcomeForm({ ...outcomeForm, actionTaken: e.target.value })}
@@ -617,7 +617,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Context</label>
+                <label className="block text-base font-semibold text-text-primary">Context</label>
                 <textarea
                   value={outcomeForm.context}
                   onChange={(e) => setOutcomeForm({ ...outcomeForm, context: e.target.value })}
@@ -628,7 +628,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Outcome</label>
+                <label className="block text-base font-semibold text-text-primary">Outcome</label>
                 <textarea
                   value={outcomeForm.outcome}
                   onChange={(e) => setOutcomeForm({ ...outcomeForm, outcome: e.target.value })}
@@ -639,7 +639,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Confidence Rating</label>
+                <label className="block text-base font-semibold text-text-primary">Confidence Rating</label>
                 <div className="mt-2">
                   <RatingCircles
                     rating={outcomeForm.confidenceRating}
@@ -649,14 +649,14 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Pattern Observed</label>
+                <label className="block text-base font-semibold text-text-primary">Pattern Observed</label>
                 <div className="mt-2 flex gap-2">
                   {(['old', 'mixed', 'new'] as const).map((pattern) => (
                     <button
                       key={pattern}
                       type="button"
                       onClick={() => setOutcomeForm({ ...outcomeForm, patternObserved: pattern })}
-                      className={`flex-1 rounded-brand border px-3 py-2 text-sm ${
+                      className={`flex-1 rounded-brand border px-3 py-2 text-base ${
                         outcomeForm.patternObserved === pattern
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-text-secondary text-text-secondary'
@@ -669,7 +669,7 @@ LAYER: ${action.layer}`;
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-text-primary">Notes (Optional)</label>
+                <label className="block text-base font-semibold text-text-primary">Notes (Optional)</label>
                 <textarea
                   value={outcomeForm.notes}
                   onChange={(e) => setOutcomeForm({ ...outcomeForm, notes: e.target.value })}
@@ -697,10 +697,10 @@ LAYER: ${action.layer}`;
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-brand bg-card p-4">
-            <div className="text-base font-semibold text-text-primary">
+            <div className="text-lg font-semibold text-text-primary">
               {deleteConfirm.type === 'action' ? 'Delete or Archive?' : 'Delete Outcome?'}
             </div>
-            <div className="mt-2 text-sm text-text-secondary">
+            <div className="mt-2 text-base text-text-secondary">
               {deleteConfirm.type === 'action'
                 ? outcomes.some((o) => o.actionId === deleteConfirm.id)
                   ? 'This action has logged outcomes. It will be archived, not deleted.'

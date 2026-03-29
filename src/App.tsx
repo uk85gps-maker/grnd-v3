@@ -63,7 +63,7 @@ function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field
 }
 
 function BottomNav() {
-  const linkBase = 'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-xs'
+  const linkBase = 'flex flex-1 flex-col items-center justify-center gap-1 py-2 text-sm'
   const linkClassName = ({ isActive }: { isActive: boolean }) =>
     `${linkBase} ${isActive ? 'text-[#d4af37]' : 'text-zinc-500'}`
 
@@ -137,7 +137,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-text-primary">
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-black">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 px-4 py-2 text-center text-base font-semibold text-black">
           You're offline — changes will sync when connected.
         </div>
       )}

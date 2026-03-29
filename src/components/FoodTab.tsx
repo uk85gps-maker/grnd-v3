@@ -584,19 +584,19 @@ export default function FoodTab() {
       <Card>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs text-text-secondary">CALORIES</div>
+            <div className="text-sm text-text-secondary">CALORIES</div>
             <div className="mt-1 text-lg font-bold text-primary">
               {foodLog.dailyTotals.calories} / {targets.calories}
             </div>
           </div>
           <div>
-            <div className="text-xs text-text-secondary">PROTEIN</div>
+            <div className="text-sm text-text-secondary">PROTEIN</div>
             <div className="mt-1 text-lg font-bold text-primary">
               {foodLog.dailyTotals.protein}g / {targets.protein}g
             </div>
           </div>
           <div>
-            <div className="text-xs text-text-secondary">FASTING</div>
+            <div className="text-sm text-text-secondary">FASTING</div>
             <div className="mt-1 text-lg font-bold text-text-secondary">
               {foodLog.fastingHours !== null ? `${foodLog.fastingHours} hrs` : '-- hrs'}
             </div>
@@ -608,7 +608,7 @@ export default function FoodTab() {
       {meals.length === 0 && supplements.length === 0 && (
         <Card>
           <div className="py-8 text-center">
-            <div className="mb-4 text-sm text-text-secondary">No meals added yet</div>
+            <div className="mb-4 text-base text-text-secondary">No meals added yet</div>
             <button
               type="button"
               onClick={handleOpenEditPlan}
@@ -623,7 +623,7 @@ export default function FoodTab() {
       {/* Meal List */}
       {meals.length > 0 && (
         <Card>
-          <div className="mb-3 text-base font-bold text-white">🍽️ Meals</div>
+          <div className="mb-3 text-lg font-bold text-white">🍽️ Meals</div>
           <div className="space-y-3">
             {meals.map((meal) => {
               const mealLog = getMealStatus(meal.id);
@@ -634,12 +634,12 @@ export default function FoodTab() {
                 <div key={meal.id} className="rounded-brand bg-background p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-text-primary">{meal.name}</div>
-                      <div className="mt-1 text-xs text-text-secondary">
+                      <div className="text-base font-semibold text-text-primary">{meal.name}</div>
+                      <div className="mt-1 text-sm text-text-secondary">
                         {meal.time} • {meal.plannedMacros.calories}cal • P:{meal.plannedMacros.protein}g C:{meal.plannedMacros.carbs}g F:{meal.plannedMacros.fat}g
                       </div>
                       {mealLog && mealLog.status === 'deviation' && (
-                        <div className="mt-1 text-xs text-primary">
+                        <div className="mt-1 text-sm text-primary">
                           Had: {mealLog.items.join(', ')}
                         </div>
                       )}
@@ -651,21 +651,21 @@ export default function FoodTab() {
                       <button
                         type="button"
                         onClick={() => handleHadThisClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
                       >
                         Had this
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSomethingElseClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
                       >
                         Something else
                       </button>
                       <button
                         type="button"
                         onClick={() => handleFastClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
                       >
                         Fast
                       </button>
@@ -676,7 +676,7 @@ export default function FoodTab() {
                     <button
                       type="button"
                       onClick={() => handleEditLog(meal.id)}
-                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"
+                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
                     >
                       Logged ✓
                     </button>
@@ -686,7 +686,7 @@ export default function FoodTab() {
                     <button
                       type="button"
                       onClick={() => handleUndoFast(meal.id)}
-                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"
+                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
                     >
                       Fasted ✓
                     </button>
@@ -697,14 +697,14 @@ export default function FoodTab() {
                       <button
                         type="button"
                         onClick={() => setFastConfirmMealId(null)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary"
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-secondary"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
                         onClick={handleConfirmFast}
-                        className="flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background"
+                        className="flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background"
                       >
                         Mark as fast?
                       </button>
@@ -720,7 +720,7 @@ export default function FoodTab() {
       {/* Supplement List */}
       {supplements.length > 0 && (
         <Card>
-          <div className="mb-3 text-base font-bold text-white">💊 Supplements</div>
+          <div className="mb-3 text-lg font-bold text-white">💊 Supplements</div>
           <div className="space-y-2">
             {supplements.map((supplement) => {
               const confirmed = getSupplementStatus(supplement.id);
@@ -733,11 +733,11 @@ export default function FoodTab() {
                   className="flex w-full items-center gap-3 rounded-brand bg-background p-3"
                 >
                   <div className={`h-5 w-5 flex items-center justify-center rounded-[4px] ${confirmed ? 'bg-primary' : 'border border-text-secondary'}`}>
-                    {confirmed && <span className="text-xs text-background">✓</span>}
+                    {confirmed && <span className="text-sm text-background">✓</span>}
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="text-sm text-text-primary">{supplement.name}</div>
-                    <div className="text-xs text-text-secondary">{supplement.time}</div>
+                    <div className="text-base text-text-primary">{supplement.name}</div>
+                    <div className="text-sm text-text-secondary">{supplement.time}</div>
                   </div>
                 </button>
               );
@@ -751,7 +751,7 @@ export default function FoodTab() {
         <button
           type="button"
           onClick={handleOpenEditPlan}
-          className="w-full rounded-brand border border-primary px-4 py-3 text-sm font-semibold text-primary"
+          className="w-full rounded-brand border border-primary px-4 py-3 text-base font-semibold text-primary"
         >
           Edit Plan
         </button>
@@ -772,20 +772,20 @@ export default function FoodTab() {
               type="time"
               value={hadThisTime}
               onChange={(e) => setHadThisTime(e.target.value)}
-              className="mb-4 w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+              className="mb-4 w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
             />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setHadThisMealId(null)}
-                className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                className="flex-1 rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmHadThis}
-                className="flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background"
+                className="flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background"
               >
                 Confirm
               </button>
@@ -817,7 +817,7 @@ export default function FoodTab() {
                   value={item}
                   onChange={(e) => handleDeviationItemChange(index, e.target.value)}
                   placeholder={index === 0 ? "What did you have?" : "Add another item"}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   autoFocus={index === 0}
                 />
               ))}
@@ -825,7 +825,7 @@ export default function FoodTab() {
               <button
                 type="button"
                 onClick={handleAddDeviationItem}
-                className="w-full rounded-brand border border-primary px-3 py-2 text-xs text-primary"
+                className="w-full rounded-brand border border-primary px-3 py-2 text-sm text-primary"
               >
                 + Add another item
               </button>
@@ -837,8 +837,8 @@ export default function FoodTab() {
                   disabled={estimating || deviationItems.filter((i) => i.trim()).length === 0}
                   className={
                     estimating || deviationItems.filter((i) => i.trim()).length === 0
-                      ? 'w-full rounded-brand bg-gray-700 px-4 py-3 text-sm font-semibold text-gray-500 opacity-50'
-                      : 'w-full rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background'
+                      ? 'w-full rounded-brand bg-gray-700 px-4 py-3 text-base font-semibold text-gray-500 opacity-50'
+                      : 'w-full rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background'
                   }
                 >
                   {estimating ? 'Estimating...' : 'Estimate macros'}
@@ -847,11 +847,11 @@ export default function FoodTab() {
 
               {estimationFailed && (
                 <>
-                  <div className="text-center text-sm text-red-500">
+                  <div className="text-center text-base text-red-500">
                     Estimation failed — enter manually
                   </div>
                   {estimationError && (
-                    <div className="rounded-brand bg-red-900/20 border border-red-500/30 p-3 text-xs text-red-400 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                    <div className="rounded-brand bg-red-900/20 border border-red-500/30 p-3 text-sm text-red-400 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
                       {estimationError}
                     </div>
                   )}
@@ -866,46 +866,46 @@ export default function FoodTab() {
                       value={manualCalories}
                       onChange={(e) => setManualCalories(e.target.value)}
                       placeholder="Calories"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualProtein}
                       onChange={(e) => setManualProtein(e.target.value)}
                       placeholder="Protein"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualCarbs}
                       onChange={(e) => setManualCarbs(e.target.value)}
                       placeholder="Carbs"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualFat}
                       onChange={(e) => setManualFat(e.target.value)}
                       placeholder="Fat"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualFibre}
                       onChange={(e) => setManualFibre(e.target.value)}
                       placeholder="Fibre"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                   </div>
 
                   {foodLog.meals.filter((m) => m.loggedTime).length === 0 && (
                     <>
-                      <div className="text-sm text-text-secondary">First meal time?</div>
+                      <div className="text-base text-text-secondary">First meal time?</div>
                       <input
                         type="time"
                         value={deviationTime}
                         onChange={(e) => setDeviationTime(e.target.value)}
-                        className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                        className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                       />
                     </>
                   )}
@@ -918,7 +918,7 @@ export default function FoodTab() {
                 <button
                   type="button"
                   onClick={() => setSomethingElseMealId(null)}
-                  className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                  className="flex-1 rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
                 >
                   Cancel
                 </button>
@@ -928,8 +928,8 @@ export default function FoodTab() {
                   disabled={!manualCalories || !manualProtein || !manualCarbs || !manualFat || !manualFibre}
                   className={
                     manualCalories && manualProtein && manualCarbs && manualFat && manualFibre
-                      ? 'flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background'
-                      : 'flex-1 rounded-brand bg-gray-700 px-4 py-3 text-sm font-semibold text-gray-500 opacity-50'
+                      ? 'flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background'
+                      : 'flex-1 rounded-brand bg-gray-700 px-4 py-3 text-base font-semibold text-gray-500 opacity-50'
                   }
                 >
                   Save
@@ -956,59 +956,59 @@ export default function FoodTab() {
 
             <div className="flex-1 space-y-3 overflow-y-auto p-6">
               <div>
-                <div className="mb-1 text-xs text-text-secondary">TIME</div>
+                <div className="mb-1 text-sm text-text-secondary">TIME</div>
                 <input
                   type="time"
                   value={editLogTime}
                   onChange={(e) => setEditLogTime(e.target.value)}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="mb-1 text-xs text-text-secondary">CALORIES</div>
+                  <div className="mb-1 text-sm text-text-secondary">CALORIES</div>
                   <input
                     type="number"
                     value={editLogCalories}
                     onChange={(e) => setEditLogCalories(e.target.value)}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
                 <div>
-                  <div className="mb-1 text-xs text-text-secondary">PROTEIN</div>
+                  <div className="mb-1 text-sm text-text-secondary">PROTEIN</div>
                   <input
                     type="number"
                     value={editLogProtein}
                     onChange={(e) => setEditLogProtein(e.target.value)}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
                 <div>
-                  <div className="mb-1 text-xs text-text-secondary">CARBS</div>
+                  <div className="mb-1 text-sm text-text-secondary">CARBS</div>
                   <input
                     type="number"
                     value={editLogCarbs}
                     onChange={(e) => setEditLogCarbs(e.target.value)}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
                 <div>
-                  <div className="mb-1 text-xs text-text-secondary">FAT</div>
+                  <div className="mb-1 text-sm text-text-secondary">FAT</div>
                   <input
                     type="number"
                     value={editLogFat}
                     onChange={(e) => setEditLogFat(e.target.value)}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
                 <div>
-                  <div className="mb-1 text-xs text-text-secondary">FIBRE</div>
+                  <div className="mb-1 text-sm text-text-secondary">FIBRE</div>
                   <input
                     type="number"
                     value={editLogFibre}
                     onChange={(e) => setEditLogFibre(e.target.value)}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
               </div>
@@ -1019,14 +1019,14 @@ export default function FoodTab() {
                 <button
                   type="button"
                   onClick={() => setEditLogMealId(null)}
-                  className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                  className="flex-1 rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveEditLog}
-                  className="flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background"
+                  className="flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background"
                 >
                   Save
                 </button>
@@ -1056,25 +1056,25 @@ export default function FoodTab() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <div className="text-sm font-semibold text-text-primary">{item.name}</div>
+                        <div className="text-base font-semibold text-text-primary">{item.name}</div>
                         <div className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
                           {item.type}
                         </div>
                       </div>
-                      <div className="mt-1 text-xs text-text-secondary">{item.time}</div>
+                      <div className="mt-1 text-sm text-text-secondary">{item.time}</div>
                     </div>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => handleEditItem(item)}
-                        className="text-xs text-primary"
+                        className="text-sm text-primary"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteItem(item.id)}
-                        className="text-xs text-red-500"
+                        className="text-sm text-red-500"
                       >
                         Delete
                       </button>
@@ -1088,13 +1088,13 @@ export default function FoodTab() {
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
                         placeholder="Name *"
-                        className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="time"
                         value={newItemTime}
                         onChange={(e) => setNewItemTime(e.target.value)}
-                        className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <input
@@ -1102,35 +1102,35 @@ export default function FoodTab() {
                           value={newItemCalories}
                           onChange={(e) => setNewItemCalories(e.target.value)}
                           placeholder="Calories"
-                          className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                          className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <input
                           type="number"
                           value={newItemProtein}
                           onChange={(e) => setNewItemProtein(e.target.value)}
                           placeholder="Protein"
-                          className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                          className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <input
                           type="number"
                           value={newItemCarbs}
                           onChange={(e) => setNewItemCarbs(e.target.value)}
                           placeholder="Carbs"
-                          className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                          className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <input
                           type="number"
                           value={newItemFat}
                           onChange={(e) => setNewItemFat(e.target.value)}
                           placeholder="Fat"
-                          className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                          className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <input
                           type="number"
                           value={newItemFibre}
                           onChange={(e) => setNewItemFibre(e.target.value)}
                           placeholder="Fibre"
-                          className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                          className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -1140,7 +1140,7 @@ export default function FoodTab() {
                             setEditingItem(null);
                             resetNewItemForm();
                           }}
-                          className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-xs text-text-secondary"
+                          className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-secondary"
                         >
                           Cancel
                         </button>
@@ -1150,8 +1150,8 @@ export default function FoodTab() {
                           disabled={!newItemName.trim() || !newItemTime.trim()}
                           className={
                             newItemName.trim() && newItemTime.trim()
-                              ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background'
-                              : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-500 opacity-50'
+                              ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                              : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
                           }
                         >
                           Save
@@ -1164,20 +1164,20 @@ export default function FoodTab() {
 
               {isAddingMeal && (
                 <div className="rounded-brand border-2 border-primary bg-background p-3">
-                  <div className="mb-2 text-sm font-semibold text-primary">Add Meal</div>
+                  <div className="mb-2 text-base font-semibold text-primary">Add Meal</div>
                   <div className="space-y-2">
                     <input
                       type="text"
                       value={newItemName}
                       onChange={(e) => setNewItemName(e.target.value)}
                       placeholder="Name *"
-                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="time"
                       value={newItemTime}
                       onChange={(e) => setNewItemTime(e.target.value)}
-                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -1185,35 +1185,35 @@ export default function FoodTab() {
                         value={newItemCalories}
                         onChange={(e) => setNewItemCalories(e.target.value)}
                         placeholder="Calories"
-                        className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newItemProtein}
                         onChange={(e) => setNewItemProtein(e.target.value)}
                         placeholder="Protein"
-                        className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newItemCarbs}
                         onChange={(e) => setNewItemCarbs(e.target.value)}
                         placeholder="Carbs"
-                        className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newItemFat}
                         onChange={(e) => setNewItemFat(e.target.value)}
                         placeholder="Fat"
-                        className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newItemFibre}
                         onChange={(e) => setNewItemFibre(e.target.value)}
                         placeholder="Fibre"
-                        className="rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -1223,7 +1223,7 @@ export default function FoodTab() {
                           setIsAddingMeal(false);
                           resetNewItemForm();
                         }}
-                        className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-xs text-text-secondary"
+                        className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-secondary"
                       >
                         Cancel
                       </button>
@@ -1233,8 +1233,8 @@ export default function FoodTab() {
                         disabled={!newItemName.trim() || !newItemTime.trim()}
                         className={
                           newItemName.trim() && newItemTime.trim()
-                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background'
-                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-500 opacity-50'
+                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
                         }
                       >
                         Add
@@ -1246,20 +1246,20 @@ export default function FoodTab() {
 
               {isAddingSupplement && (
                 <div className="rounded-brand border-2 border-primary bg-background p-3">
-                  <div className="mb-2 text-sm font-semibold text-primary">Add Supplement</div>
+                  <div className="mb-2 text-base font-semibold text-primary">Add Supplement</div>
                   <div className="space-y-2">
                     <input
                       type="text"
                       value={newItemName}
                       onChange={(e) => setNewItemName(e.target.value)}
                       placeholder="Name *"
-                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="time"
                       value={newItemTime}
                       onChange={(e) => setNewItemTime(e.target.value)}
-                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <div className="flex gap-2">
                       <button
@@ -1268,7 +1268,7 @@ export default function FoodTab() {
                           setIsAddingSupplement(false);
                           resetNewItemForm();
                         }}
-                        className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-xs text-text-secondary"
+                        className="flex-1 rounded-brand bg-[#141414] px-3 py-2 text-sm text-text-secondary"
                       >
                         Cancel
                       </button>
@@ -1278,8 +1278,8 @@ export default function FoodTab() {
                         disabled={!newItemName.trim() || !newItemTime.trim()}
                         className={
                           newItemName.trim() && newItemTime.trim()
-                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background'
-                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-500 opacity-50'
+                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
+                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
                         }
                       >
                         Add
@@ -1294,14 +1294,14 @@ export default function FoodTab() {
                   <button
                     type="button"
                     onClick={handleStartAddMeal}
-                    className="flex-1 rounded-brand border border-primary px-4 py-3 text-sm font-semibold text-primary"
+                    className="flex-1 rounded-brand border border-primary px-4 py-3 text-base font-semibold text-primary"
                   >
                     + Add Meal
                   </button>
                   <button
                     type="button"
                     onClick={handleStartAddSupplement}
-                    className="flex-1 rounded-brand border border-primary px-4 py-3 text-sm font-semibold text-primary"
+                    className="flex-1 rounded-brand border border-primary px-4 py-3 text-base font-semibold text-primary"
                   >
                     + Add Supplement
                   </button>
@@ -1313,7 +1313,7 @@ export default function FoodTab() {
               <button
                 type="button"
                 onClick={handleCloseEditPlan}
-                className="w-full rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                className="w-full rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
               >
                 Close
               </button>

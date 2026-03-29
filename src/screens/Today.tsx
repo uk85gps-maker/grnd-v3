@@ -963,8 +963,8 @@ export default function Today() {
           onClick={() => setActiveTab('life')}
           className={
             activeTab === 'life'
-              ? 'flex-1 border-b-2 border-primary pb-3 text-sm font-semibold text-primary'
-              : 'flex-1 pb-3 text-sm font-semibold text-text-secondary'
+              ? 'flex-1 border-b-2 border-primary pb-3 text-base font-semibold text-primary'
+              : 'flex-1 pb-3 text-base font-semibold text-text-secondary'
           }
         >
           Life
@@ -974,8 +974,8 @@ export default function Today() {
           onClick={() => setActiveTab('food')}
           className={
             activeTab === 'food'
-              ? 'flex-1 border-b-2 border-primary pb-3 text-sm font-semibold text-primary'
-              : 'flex-1 pb-3 text-sm font-semibold text-text-secondary'
+              ? 'flex-1 border-b-2 border-primary pb-3 text-base font-semibold text-primary'
+              : 'flex-1 pb-3 text-base font-semibold text-text-secondary'
           }
         >
           Food
@@ -992,7 +992,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('focus')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-white">🎯 Today's Focus</div>
+          <div className="text-lg font-bold text-white">🎯 Today's Focus</div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1001,7 +1001,7 @@ export default function Today() {
                 localStorage.setItem(`grnd_focus_dismissed_${dayKey}`, 'true');
                 setFocusDismissed(true);
               }}
-              className="text-zinc-400 hover:text-white text-sm"
+              className="text-zinc-400 hover:text-white text-base"
             >
               ✕
             </button>
@@ -1057,7 +1057,7 @@ export default function Today() {
                             )}
                           </div>
                           <div className="flex-1">
-                            <div className={isCompleted ? 'text-sm text-primary line-through' : 'text-sm text-text-primary'}>
+                            <div className={isCompleted ? 'text-base text-primary line-through' : 'text-base text-text-primary'}>
                               {item.text}
                             </div>
                             <div className="mt-1 text-[10px] font-semibold tracking-widest text-primary">{item.layer}</div>
@@ -1089,7 +1089,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('proof')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-white">⚡ Yesterday's Proof</div>
+          <div className="text-lg font-bold text-white">⚡ Yesterday's Proof</div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1098,7 +1098,7 @@ export default function Today() {
                 localStorage.setItem(`grnd_proof_dismissed_${dayKey}`, 'true');
                 setProofDismissed(true);
               }}
-              className="text-zinc-400 hover:text-white text-sm"
+              className="text-zinc-400 hover:text-white text-base"
             >
               ✕
             </button>
@@ -1114,7 +1114,7 @@ export default function Today() {
           </div>
         </button>
         {openSection === 'proof' && (
-          <div className="mt-3 text-sm text-text-primary">
+          <div className="mt-3 text-base text-text-primary">
             {yesterdayProof ? (
               yesterdayProof
             ) : (
@@ -1132,7 +1132,7 @@ export default function Today() {
           onClick={() => handleSectionToggle('sleep')}
           className="flex w-full items-center justify-between"
         >
-          <div className="text-base font-bold text-white">🌙 Sleep Check-In</div>
+          <div className="text-lg font-bold text-white">🌙 Sleep Check-In</div>
           <svg
             viewBox="0 0 24 24"
             className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'sleep' ? 'rotate-180' : ''}`}
@@ -1152,7 +1152,7 @@ export default function Today() {
                   type="time"
                   value={sleep.bedTime}
                   onChange={(e) => setSleep((prev) => ({ ...prev, bedTime: e.target.value }))}
-                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
+                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none"
                 />
               </label>
               <label className="flex-1">
@@ -1161,7 +1161,7 @@ export default function Today() {
                   type="time"
                   value={sleep.wakeTime}
                   onChange={(e) => setSleep((prev) => ({ ...prev, wakeTime: e.target.value }))}
-                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
+                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none"
                 />
               </label>
             </div>
@@ -1212,13 +1212,13 @@ export default function Today() {
       )}
 
       <Card>
-        <div className="text-base font-bold text-white mb-3">📊 Stats</div>
+        <div className="text-lg font-bold text-white mb-3">📊 Stats</div>
         <div className="-mx-4 overflow-x-auto px-4">
             <div className="flex w-max gap-3 pr-10">
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">WEIGHT</div>
             <div className="mt-1 text-lg font-bold text-text-primary">80.8kg</div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
+            <div className="mt-1 flex items-center gap-1 text-sm">
               <Arrow direction="down" color="gold" />
               <span className="text-primary">-1.3kg</span>
             </div>
@@ -1227,7 +1227,7 @@ export default function Today() {
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">BODY FAT</div>
             <div className="mt-1 text-lg font-bold text-text-primary">29.4%</div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
+            <div className="mt-1 flex items-center gap-1 text-sm">
               <Arrow direction="down" color="gold" />
               <span className="text-primary">improving</span>
             </div>
@@ -1236,7 +1236,7 @@ export default function Today() {
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">GYM</div>
             <div className="mt-1 text-lg font-bold text-text-primary">3 sessions</div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
+            <div className="mt-1 flex items-center gap-1 text-sm">
               <Arrow direction="up" color="gold" />
               <span className="text-primary">this week</span>
             </div>
@@ -1245,7 +1245,7 @@ export default function Today() {
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">SLEEP</div>
             <div className="mt-1 text-lg font-bold text-text-primary">8/10</div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
+            <div className="mt-1 flex items-center gap-1 text-sm">
               <Arrow direction="up" color="gold" />
               <span className="text-primary">energy</span>
             </div>
@@ -1254,7 +1254,7 @@ export default function Today() {
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">CHECKLIST</div>
             <div className="mt-1 text-lg font-bold text-text-primary">57%</div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
+            <div className="mt-1 flex items-center gap-1 text-sm">
               <Arrow direction="right" color="grey" />
               <span className="text-text-secondary">building</span>
             </div>
@@ -1265,8 +1265,8 @@ export default function Today() {
 
       <Card>
         <div className="flex w-full items-center justify-between mb-4">
-          <div className="text-base font-bold text-white">✅ Today's Score</div>
-          <div className="text-base font-bold text-primary">
+          <div className="text-lg font-bold text-white">✅ Today's Score</div>
+          <div className="text-lg font-bold text-primary">
             {checkedCount}/{totalCount}
           </div>
         </div>
@@ -1286,12 +1286,12 @@ export default function Today() {
                     className="min-h-[44px] flex-1 text-left"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-base">{section.emoji}</span>
+                      <span className="text-lg">{section.emoji}</span>
                       <span className="font-semibold text-text-primary">{section.name}</span>
                     </div>
                   </button>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm text-text-secondary">
+                    <div className="text-base text-text-secondary">
                       {sectionChecked}/{section.items.length}
                     </div>
                     <button
@@ -1329,8 +1329,8 @@ export default function Today() {
                                   onClick={() => setDetailItem(item)}
                                   className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
                                 >
-                                  <div className="text-sm text-text-primary">{item.name}</div>
-                                  <div className="mt-1 text-xs text-text-secondary">{item.time}</div>
+                                  <div className="text-base text-text-primary">{item.name}</div>
+                                  <div className="mt-1 text-sm text-text-secondary">{item.time}</div>
                                 </button>
                                 <button
                                   type="button"
@@ -1362,14 +1362,14 @@ export default function Today() {
                                       }}
                                       className={
                                         checked
-                                          ? 'text-sm text-text-secondary line-through text-left cursor-pointer'
-                                          : 'text-sm text-text-primary text-left cursor-pointer'
+                                          ? 'text-base text-text-secondary line-through text-left cursor-pointer'
+                                          : 'text-base text-text-primary text-left cursor-pointer'
                                       }
                                     >
                                       {item.name}
                                     </span>
                                   </div>
-                                  <div className="shrink-0 text-right text-xs text-text-secondary">
+                                  <div className="shrink-0 text-right text-sm text-text-secondary">
                                     {item.time}
                                   </div>
                                 </div>
@@ -1391,7 +1391,7 @@ export default function Today() {
                         return (
                           <div className="mt-3 rounded-brand bg-card/40 p-3">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 text-xs">
+                              <div className="flex items-center gap-4 text-sm">
                                 <div>
                                   <span className="text-text-secondary">Energy:</span>{' '}
                                   <span className="font-semibold text-text-primary">{savedEntry.energy}</span>
@@ -1418,7 +1418,7 @@ export default function Today() {
                                     },
                                   }));
                                 }}
-                                className="text-xs text-primary"
+                                className="text-sm text-primary"
                               >
                                 Edit
                               </button>
@@ -1539,7 +1539,7 @@ export default function Today() {
                               <button
                                 type="button"
                                 onClick={() => handleSaveSectionMood(section.id, section.name)}
-                                className="min-h-[32px] w-full rounded-brand bg-primary text-xs font-bold text-background"
+                                className="min-h-[32px] w-full rounded-brand bg-primary text-sm font-bold text-background"
                               >
                                 Save
                               </button>
@@ -1577,14 +1577,14 @@ export default function Today() {
             className="flex w-full items-center justify-between"
           >
             <div className="flex items-center gap-2">
-              <span className="text-base">{weeklySection.emoji}</span>
-              <span className="text-base font-bold text-white">🏠 Weekly Environment</span>
+              <span className="text-lg">{weeklySection.emoji}</span>
+              <span className="text-lg font-bold text-white">🏠 Weekly Environment</span>
               {weeklyCheckedCount === weeklyItems.length && weeklyItems.length > 0 && (
                 <div className="h-2 w-2 rounded-full bg-green-500" />
               )}
             </div>
             <div className="flex items-center gap-2">
-              <div className="text-sm text-text-secondary">
+              <div className="text-base text-text-secondary">
                 {weeklyCheckedCount}/{weeklyItems.length}
               </div>
               <svg
@@ -1622,7 +1622,7 @@ export default function Today() {
                           onClick={() => setDetailItem(item)}
                           className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
                         >
-                          <div className="text-sm text-text-primary">{item.name}</div>
+                          <div className="text-base text-text-primary">{item.name}</div>
                         </button>
                         <button
                           type="button"
@@ -1654,8 +1654,8 @@ export default function Today() {
                               }}
                               className={
                                 checked
-                                  ? 'text-sm text-text-secondary line-through cursor-pointer'
-                                  : 'text-sm text-text-primary cursor-pointer'
+                                  ? 'text-base text-text-secondary line-through cursor-pointer'
+                                  : 'text-base text-text-primary cursor-pointer'
                               }
                             >
                               {item.name}
@@ -1700,16 +1700,16 @@ export default function Today() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setDetailItem(null)}>
           <div className="w-full max-w-md rounded-t-brand bg-card p-6" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 text-lg font-bold text-text-primary">{detailItem.name}</div>
-            <div className="mb-4 inline-block rounded-brand bg-primary px-3 py-1 text-xs font-semibold text-background">
+            <div className="mb-4 inline-block rounded-brand bg-primary px-3 py-1 text-sm font-semibold text-background">
               {detailItem.layer}
             </div>
             <div className="mb-4">
-              <div className="text-xs text-text-secondary">Why it's here:</div>
-              <div className="mt-1 text-sm text-text-primary">{detailItem.purpose}</div>
+              <div className="text-sm text-text-secondary">Why it's here:</div>
+              <div className="mt-1 text-base text-text-primary">{detailItem.purpose}</div>
             </div>
             <div className="mb-6">
-              <div className="text-xs text-text-secondary">If missed:</div>
-              <div className="mt-1 text-sm text-text-primary">{detailItem.consequence}</div>
+              <div className="text-sm text-text-secondary">If missed:</div>
+              <div className="mt-1 text-base text-text-primary">{detailItem.consequence}</div>
             </div>
             <button
               type="button"
@@ -1736,7 +1736,7 @@ export default function Today() {
                   placeholder="Item name"
                   value={newItem.name}
                   onChange={(e) => setNewItem((p) => ({ ...p, name: e.target.value }))}
-                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none ${
                     showValidation && !newItem.name ? 'border-2 border-red-500' : ''
                   }`}
                 />
@@ -1744,14 +1744,14 @@ export default function Today() {
                   type="time"
                   value={newItem.time}
                   onChange={(e) => setNewItem((p) => ({ ...p, time: e.target.value }))}
-                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none ${
                     showValidation && !newItem.time ? 'border-2 border-red-500' : ''
                   }`}
                 />
                 <select
                   value={newItem.layer}
                   onChange={(e) => setNewItem((p) => ({ ...p, layer: e.target.value }))}
-                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none"
+                  className="min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none"
                 >
                   <option value="Foundation">Foundation</option>
                   <option value="Sleep">Sleep</option>
@@ -1767,7 +1767,7 @@ export default function Today() {
                   placeholder="Why does this item exist?"
                   value={newItem.purpose}
                   onChange={(e) => setNewItem((p) => ({ ...p, purpose: e.target.value }))}
-                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none ${
                     showValidation && !newItem.purpose ? 'border-2 border-red-500' : ''
                   }`}
                 />
@@ -1776,7 +1776,7 @@ export default function Today() {
                   placeholder="What breaks if this is skipped?"
                   value={newItem.consequence}
                   onChange={(e) => setNewItem((p) => ({ ...p, consequence: e.target.value }))}
-                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-sm text-text-primary outline-none ${
+                  className={`min-h-[44px] w-full rounded-brand bg-background px-3 text-base text-text-primary outline-none ${
                     showValidation && !newItem.consequence ? 'border-2 border-red-500' : ''
                   }`}
                 />
@@ -1786,7 +1786,7 @@ export default function Today() {
               <button
                 type="button"
                 onClick={() => { setAddItemSection(null); setShowValidation(false); }}
-                className="w-full text-center text-sm text-text-secondary min-h-[44px]"
+                className="w-full text-center text-base text-text-secondary min-h-[44px]"
               >
                 Cancel
               </button>
@@ -1843,46 +1843,46 @@ export default function Today() {
               {/* Edit Targets Section */}
               {editTargetsMode ? (
                 <div className="mb-4 space-y-3 rounded-brand bg-background p-3">
-                  <div className="text-sm font-semibold text-text-primary">Daily Targets</div>
+                  <div className="text-base font-semibold text-text-primary">Daily Targets</div>
                   <input
                     type="number"
                     value={tempTargets.calories}
                     onChange={(e) => setTempTargets({ ...tempTargets, calories: parseFloat(e.target.value) || 0 })}
                     placeholder="Calories"
-                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <input
                     type="number"
                     value={tempTargets.protein}
                     onChange={(e) => setTempTargets({ ...tempTargets, protein: parseFloat(e.target.value) || 0 })}
                     placeholder="Protein (g)"
-                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <input
                     type="number"
                     value={tempTargets.carbs}
                     onChange={(e) => setTempTargets({ ...tempTargets, carbs: parseFloat(e.target.value) || 0 })}
                     placeholder="Carbs (g)"
-                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <input
                     type="number"
                     value={tempTargets.fat}
                     onChange={(e) => setTempTargets({ ...tempTargets, fat: parseFloat(e.target.value) || 0 })}
                     placeholder="Fat (g)"
-                    className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleSaveTargets}
-                    className="w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background"
+                    className="w-full rounded-brand bg-primary px-3 py-2 text-base font-semibold text-background"
                   >
                     Save Targets
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditTargetsMode(false)}
-                    className="w-full text-sm text-text-secondary"
+                    className="w-full text-base text-text-secondary"
                   >
                     Cancel
                   </button>
@@ -1891,7 +1891,7 @@ export default function Today() {
                 <button
                   type="button"
                   onClick={() => setEditTargetsMode(true)}
-                  className="mb-4 w-full text-left text-xs text-primary"
+                  className="mb-4 w-full text-left text-sm text-primary"
                 >
                   Edit daily targets
                 </button>
@@ -1909,13 +1909,13 @@ export default function Today() {
                           type="text"
                           value={editingMeal.name}
                           onChange={(e) => setEditingMeal({ ...editingMeal, name: e.target.value })}
-                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <input
                           type="time"
                           value={editingMeal.time}
                           onChange={(e) => setEditingMeal({ ...editingMeal, time: e.target.value })}
-                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <div className="grid grid-cols-2 gap-2">
                           <input
@@ -1923,28 +1923,28 @@ export default function Today() {
                             value={editingMeal.calories}
                             onChange={(e) => setEditingMeal({ ...editingMeal, calories: parseFloat(e.target.value) || 0 })}
                             placeholder="Cal"
-                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                            className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                           />
                           <input
                             type="number"
                             value={editingMeal.protein}
                             onChange={(e) => setEditingMeal({ ...editingMeal, protein: parseFloat(e.target.value) || 0 })}
                             placeholder="Protein"
-                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                            className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                           />
                           <input
                             type="number"
                             value={editingMeal.carbs}
                             onChange={(e) => setEditingMeal({ ...editingMeal, carbs: parseFloat(e.target.value) || 0 })}
                             placeholder="Carbs"
-                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                            className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                           />
                           <input
                             type="number"
                             value={editingMeal.fat}
                             onChange={(e) => setEditingMeal({ ...editingMeal, fat: parseFloat(e.target.value) || 0 })}
                             placeholder="Fat"
-                            className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                            className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                           />
                         </div>
                         <input
@@ -1952,7 +1952,7 @@ export default function Today() {
                           value={editingMeal.purpose}
                           onChange={(e) => setEditingMeal({ ...editingMeal, purpose: e.target.value })}
                           placeholder="Purpose"
-                          className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                          className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                         />
                         <div className="flex gap-2">
                           <button
@@ -1961,14 +1961,14 @@ export default function Today() {
                               setMealPlanDefaults(mealPlanDefaults.map((m) => (m.id === editingMeal.id ? editingMeal : m)));
                               setEditingMeal(null);
                             }}
-                            className="flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background"
+                            className="flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background"
                           >
                             Save
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingMeal(null)}
-                            className="flex-1 text-xs text-text-secondary"
+                            className="flex-1 text-sm text-text-secondary"
                           >
                             Cancel
                           </button>
@@ -1978,7 +1978,7 @@ export default function Today() {
                       <div>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="text-sm font-semibold text-text-primary">{meal.name}</div>
+                            <div className="text-base font-semibold text-text-primary">{meal.name}</div>
                             <div className="mt-1 text-[10px] text-text-secondary">
                               {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
                             </div>
@@ -1988,14 +1988,14 @@ export default function Today() {
                             <button
                               type="button"
                               onClick={() => setEditingMeal(meal)}
-                              className="text-xs text-primary"
+                              className="text-sm text-primary"
                             >
                               Edit
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteMealFromPlan(meal.id)}
-                              className="text-xs text-red-500"
+                              className="text-sm text-red-500"
                             >
                               Delete
                             </button>
@@ -2008,20 +2008,20 @@ export default function Today() {
 
                 {/* Add New Meal */}
                 <div className="rounded-brand bg-background p-3">
-                  <div className="mb-2 text-sm font-semibold text-text-primary">Add New Meal</div>
+                  <div className="mb-2 text-base font-semibold text-text-primary">Add New Meal</div>
                   <div className="space-y-2">
                     <input
                       type="text"
                       value={newMeal.name || ''}
                       onChange={(e) => setNewMeal({ ...newMeal, name: e.target.value })}
                       placeholder="Meal name"
-                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="time"
                       value={newMeal.time || ''}
                       onChange={(e) => setNewMeal({ ...newMeal, time: e.target.value })}
-                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -2029,28 +2029,28 @@ export default function Today() {
                         value={newMeal.calories || ''}
                         onChange={(e) => setNewMeal({ ...newMeal, calories: parseFloat(e.target.value) || 0 })}
                         placeholder="Calories"
-                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newMeal.protein || ''}
                         onChange={(e) => setNewMeal({ ...newMeal, protein: parseFloat(e.target.value) || 0 })}
                         placeholder="Protein (g)"
-                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newMeal.carbs || ''}
                         onChange={(e) => setNewMeal({ ...newMeal, carbs: parseFloat(e.target.value) || 0 })}
                         placeholder="Carbs (g)"
-                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                       />
                       <input
                         type="number"
                         value={newMeal.fat || ''}
                         onChange={(e) => setNewMeal({ ...newMeal, fat: parseFloat(e.target.value) || 0 })}
                         placeholder="Fat (g)"
-                        className="rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                        className="rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                       />
                     </div>
                     <input
@@ -2058,7 +2058,7 @@ export default function Today() {
                       value={newMeal.purpose || ''}
                       onChange={(e) => setNewMeal({ ...newMeal, purpose: e.target.value })}
                       placeholder="Purpose"
-                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand bg-card px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <button
                       type="button"
@@ -2066,8 +2066,8 @@ export default function Today() {
                       disabled={!newMeal.name || !newMeal.time || newMeal.calories === undefined || newMeal.protein === undefined || newMeal.carbs === undefined || newMeal.fat === undefined || !newMeal.purpose}
                       className={
                         newMeal.name && newMeal.time && newMeal.calories !== undefined && newMeal.protein !== undefined && newMeal.carbs !== undefined && newMeal.fat !== undefined && newMeal.purpose
-                          ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
-                          : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                          ? 'w-full rounded-brand bg-primary px-3 py-2 text-base font-semibold text-background'
+                          : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-base font-semibold text-gray-500 opacity-50'
                       }
                     >
                       Add Meal
@@ -2115,7 +2115,7 @@ export default function Today() {
                       value={usdaSearchQuery}
                       onChange={(e) => setUsdaSearchQuery(e.target.value)}
                       placeholder="Search food..."
-                      className="flex-1 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="flex-1 rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleSearchUsda();
                       }}
@@ -2124,14 +2124,14 @@ export default function Today() {
                       type="button"
                       onClick={handleSearchUsda}
                       disabled={usdaLoading}
-                      className="rounded-brand bg-primary px-4 py-2 text-sm font-semibold text-background"
+                      className="rounded-brand bg-primary px-4 py-2 text-base font-semibold text-background"
                     >
                       {usdaLoading ? 'Searching...' : 'Search'}
                     </button>
                   </div>
 
                   {usdaError && (
-                    <div className="text-xs text-amber-500">{usdaError}</div>
+                    <div className="text-sm text-amber-500">{usdaError}</div>
                   )}
                 </div>
               ) : null}
@@ -2147,7 +2147,7 @@ export default function Today() {
                       onClick={() => handleSelectUsdaFood(food)}
                       className="w-full rounded-brand bg-background p-3 text-left"
                     >
-                      <div className="text-sm text-text-primary">{food.description || 'Unknown food'}</div>
+                      <div className="text-base text-text-primary">{food.description || 'Unknown food'}</div>
                       <div className="mt-1 text-[10px] text-text-secondary">
                         {food.foodNutrients?.find((n: any) => n.nutrientId === 1008)?.value || 0} cal per 100g
                       </div>
@@ -2159,7 +2159,7 @@ export default function Today() {
               {selectedUsdaFood && !showManualEntry ? (
                 <div className="space-y-3">
                   <div className="rounded-brand bg-background p-3">
-                    <div className="text-sm font-semibold text-text-primary">{selectedUsdaFood.description}</div>
+                    <div className="text-base font-semibold text-text-primary">{selectedUsdaFood.description}</div>
                     <div className="mt-2 text-[10px] text-text-secondary">
                       Per 100g: {selectedUsdaFood.foodNutrients?.find((n: any) => n.nutrientId === 1008)?.value || 0} cal
                     </div>
@@ -2169,7 +2169,7 @@ export default function Today() {
                     value={usdaQuantity}
                     onChange={(e) => setUsdaQuantity(e.target.value)}
                     placeholder="Quantity in grams"
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <button
                     type="button"
@@ -2177,8 +2177,8 @@ export default function Today() {
                     disabled={!usdaQuantity}
                     className={
                       usdaQuantity
-                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
-                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-base font-semibold text-background'
+                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-base font-semibold text-gray-500 opacity-50'
                     }
                   >
                     Confirm
@@ -2186,7 +2186,7 @@ export default function Today() {
                   <button
                     type="button"
                     onClick={() => setSelectedUsdaFood(null)}
-                    className="w-full text-sm text-text-secondary"
+                    className="w-full text-base text-text-secondary"
                   >
                     Back to results
                   </button>
@@ -2195,20 +2195,20 @@ export default function Today() {
 
               {showManualEntry ? (
                 <div className="space-y-3">
-                  <div className="text-sm text-text-secondary">Enter meal details manually:</div>
+                  <div className="text-base text-text-secondary">Enter meal details manually:</div>
                   <input
                     type="text"
                     value={manualMealEntry.name || ''}
                     onChange={(e) => setManualMealEntry({ ...manualMealEntry, name: e.target.value })}
                     placeholder="Meal name"
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <input
                     type="number"
                     value={manualMealEntry.calories || ''}
                     onChange={(e) => setManualMealEntry({ ...manualMealEntry, calories: parseFloat(e.target.value) || 0 })}
                     placeholder="Calories"
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                   <div className="grid grid-cols-3 gap-2">
                     <input
@@ -2216,21 +2216,21 @@ export default function Today() {
                       value={manualMealEntry.protein || ''}
                       onChange={(e) => setManualMealEntry({ ...manualMealEntry, protein: parseFloat(e.target.value) || 0 })}
                       placeholder="Protein (g)"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualMealEntry.carbs || ''}
                       onChange={(e) => setManualMealEntry({ ...manualMealEntry, carbs: parseFloat(e.target.value) || 0 })}
                       placeholder="Carbs (g)"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                     <input
                       type="number"
                       value={manualMealEntry.fat || ''}
                       onChange={(e) => setManualMealEntry({ ...manualMealEntry, fat: parseFloat(e.target.value) || 0 })}
                       placeholder="Fat (g)"
-                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                   </div>
                   <button
@@ -2239,8 +2239,8 @@ export default function Today() {
                     disabled={!manualMealEntry.name || manualMealEntry.calories === undefined || manualMealEntry.protein === undefined || manualMealEntry.carbs === undefined || manualMealEntry.fat === undefined}
                     className={
                       manualMealEntry.name && manualMealEntry.calories !== undefined && manualMealEntry.protein !== undefined && manualMealEntry.carbs !== undefined && manualMealEntry.fat !== undefined
-                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background'
-                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-500 opacity-50'
+                        ? 'w-full rounded-brand bg-primary px-3 py-2 text-base font-semibold text-background'
+                        : 'w-full rounded-brand bg-gray-700 px-3 py-2 text-base font-semibold text-gray-500 opacity-50'
                     }
                   >
                     Add Meal

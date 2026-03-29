@@ -45,6 +45,7 @@ export default function Review() {
   const [newMeasurement, setNewMeasurement] = useState<Partial<BodyLogEntry>>({
     date: new Date().toISOString().split('T')[0],
   });
+  const [bodyFatManual, setBodyFatManual] = useState(false);
 
   const [editingPyramid, setEditingPyramid] = useState<PyramidLayer | null>(null);
   const [dimensionScore, setDimensionScore] = useState(0);
@@ -183,14 +184,30 @@ export default function Review() {
     return total > 0 ? Math.round((progress / total) * 100) : 0;
   }, [latestStats, stageData, gymPerformanceScore]);
 
+  // US Navy formula (male): BF% = 86.010×log10(waist_cm - neck_cm) − 70.041×log10(height_cm) + 36.76
+  // waist is stored in cm, neck is stored in mm → convert neck to cm
+  const calcNavyBodyFat = (waistCm: number, neckMm: number, heightCm = 173): number => {
+    const neckCm = neckMm / 10;
+    const diff = waistCm - neckCm;
+    if (diff <= 0) return 0;
+    const bf = 86.010 * Math.log10(diff) - 70.041 * Math.log10(heightCm) + 36.76;
+    return Math.round(bf * 10) / 10;
+  };
+
   const handleSaveMeasurement = () => {
     if (!newMeasurement.date) return;
+
+    let bodyFat = newMeasurement.bodyFat;
+    if (!bodyFat && newMeasurement.waist && newMeasurement.neck) {
+      bodyFat = calcNavyBodyFat(newMeasurement.waist, newMeasurement.neck);
+    }
 
     const entry: BodyLogEntry = {
       date: newMeasurement.date,
       weight: newMeasurement.weight,
-      bodyFat: newMeasurement.bodyFat,
+      bodyFat,
       waist: newMeasurement.waist,
+      neck: newMeasurement.neck,
       restingHR: newMeasurement.restingHR,
       systolic: newMeasurement.systolic,
       diastolic: newMeasurement.diastolic,
@@ -200,6 +217,7 @@ export default function Review() {
     setLatestStats(getLatestBodyStats());
     setShowLogMeasurements(false);
     setNewMeasurement({ date: new Date().toISOString().split('T')[0] });
+    setBodyFatManual(false);
   };
 
   const handleSavePyramidLayer = () => {
@@ -293,7 +311,7 @@ export default function Review() {
       <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
         <div className="mb-4 text-center">
           <div className="text-3xl font-bold text-[#d4af37]">{systemHealthScore}</div>
-          <div className="mt-1 text-xs text-zinc-400">System Health Score</div>
+          <div className="mt-1 text-sm text-zinc-400">System Health Score</div>
         </div>
 
         <div className="space-y-2">
@@ -305,15 +323,15 @@ export default function Review() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`h-3 w-3 rounded-full ${getStatusColor(stream.status)}`} />
-                  <div className="text-sm text-text-primary">{stream.name}</div>
+                  <div className="text-base text-text-primary">{stream.name}</div>
                 </div>
-                <div className="text-xs text-text-secondary">{stream.lastActivity}</div>
+                <div className="text-sm text-text-secondary">{stream.lastActivity}</div>
               </div>
               {stream.status === 'red' && stream.built && (
                 <button
                   type="button"
                   onClick={() => navigate('/coach')}
-                  className="mt-2 w-full rounded-brand border border-primary px-3 py-1 text-xs text-primary"
+                  className="mt-2 w-full rounded-brand border border-primary px-3 py-1 text-sm text-primary"
                 >
                   Talk to Coach about this
                 </button>
@@ -323,8 +341,8 @@ export default function Review() {
         </div>
 
         <div className="mt-4 rounded-2xl border border-[#2a2a2a] bg-[#141414] p-3">
-          <div className="mb-2 text-xs font-semibold text-zinc-400">WEEKLY SUMMARY</div>
-          <div className="space-y-1 text-xs text-text-primary">
+          <div className="mb-2 text-sm font-semibold text-zinc-400">WEEKLY SUMMARY</div>
+          <div className="space-y-1 text-sm text-text-primary">
             <div>System Health: {systemHealthScore}/100</div>
             {bestStream && <div>Best Stream: {bestStream.name}</div>}
             {weakestStream && <div>Weakest Stream: {weakestStream.name}</div>}
@@ -335,8 +353,8 @@ export default function Review() {
       {/* 2. Pyramid Status */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-semibold tracking-widest text-text-secondary">PYRAMID STATUS</div>
-          <button type="button" className="text-xs text-primary">
+          <div className="text-sm font-semibold tracking-widest text-text-secondary">PYRAMID STATUS</div>
+          <button type="button" className="text-sm text-primary">
             Recalculate
           </button>
         </div>
@@ -348,7 +366,7 @@ export default function Review() {
                 key={layer.id}
                 type="button"
                 onClick={() => setShowPyramidDetail(layer)}
-                className="w-full rounded-2xl px-4 py-2 text-center text-xs font-bold text-black"
+                className="w-full rounded-2xl px-4 py-2 text-center text-sm font-bold text-black"
                 style={{
                   width: `${100 - (layer.id - 1) * 6}%`,
                   margin: '0 auto',
@@ -384,11 +402,11 @@ export default function Review() {
       {/* 3. Body Stats */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-semibold tracking-widest text-text-secondary">BODY STATS</div>
+          <div className="text-sm font-semibold tracking-widest text-text-secondary">BODY STATS</div>
           <button
             type="button"
             onClick={() => setShowLogMeasurements(true)}
-            className="rounded-brand border border-primary px-3 py-1 text-xs text-primary"
+            className="rounded-brand border border-primary px-3 py-1 text-sm text-primary"
           >
             Log Measurements
           </button>
@@ -406,6 +424,9 @@ export default function Review() {
             <div className="mt-1 text-xl font-bold text-text-primary">
               {latestStats?.bodyFat ? `${latestStats.bodyFat}%` : '—'}
             </div>
+            {latestStats?.bodyFat && latestStats?.neck && (
+              <div className="mt-0.5 text-[10px] text-zinc-500">Navy formula</div>
+            )}
           </div>
           <div className="rounded-brand bg-card p-3">
             <div className="text-[10px] tracking-widest text-text-secondary">WAIST</div>
@@ -434,8 +455,8 @@ export default function Review() {
       {/* 4. Gym Performance */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <div className="text-xs font-semibold tracking-widest text-text-secondary">GYM PERFORMANCE</div>
-          <div className="text-sm font-bold text-primary">{gymPerformanceScore}%</div>
+          <div className="text-sm font-semibold tracking-widest text-text-secondary">GYM PERFORMANCE</div>
+          <div className="text-base font-bold text-primary">{gymPerformanceScore}%</div>
         </div>
 
         <div className="rounded-brand bg-card p-4">
@@ -445,7 +466,7 @@ export default function Review() {
               style={{ width: `${gymPerformanceScore}%` }}
             />
           </div>
-          <div className="text-xs text-text-secondary">
+          <div className="text-sm text-text-secondary">
             Last scored: {gymSessions.length > 0 ? new Date(gymSessions[gymSessions.length - 1].date).toLocaleDateString() : '—'}
           </div>
         </div>
@@ -453,11 +474,11 @@ export default function Review() {
 
       {/* 5. Stage Readiness */}
       <div>
-        <div className="mb-3 text-xs font-semibold tracking-widest text-text-secondary">STAGE READINESS</div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">STAGE READINESS</div>
 
         <div className="rounded-brand bg-card p-4">
           <div className="mb-4 text-center">
-            <div className="text-sm font-bold text-primary">STAGE 1 READINESS — BUILD</div>
+            <div className="text-base font-bold text-primary">STAGE 1 READINESS — BUILD</div>
             <div className="mt-4">
               <svg className="mx-auto h-24 w-24" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" fill="none" stroke="#333" strokeWidth="8" />
@@ -482,7 +503,7 @@ export default function Review() {
           <div className="space-y-2">
             {stageData.stages[0].unlockConditions.weight && (
               <div>
-                <div className="mb-1 flex justify-between text-xs">
+                <div className="mb-1 flex justify-between text-sm">
                   <span className="text-text-secondary">Weight</span>
                   <span className="text-text-primary">
                     {latestStats?.weight || '—'} → {stageData.stages[0].unlockConditions.weight}kg
@@ -502,7 +523,7 @@ export default function Review() {
             )}
             {stageData.stages[0].unlockConditions.bodyFat && (
               <div>
-                <div className="mb-1 flex justify-between text-xs">
+                <div className="mb-1 flex justify-between text-sm">
                   <span className="text-text-secondary">Body Fat</span>
                   <span className="text-text-primary">
                     {latestStats?.bodyFat || '—'} → &lt;{stageData.stages[0].unlockConditions.bodyFat}%
@@ -522,7 +543,7 @@ export default function Review() {
             )}
             {stageData.stages[0].unlockConditions.gymConsistency && (
               <div>
-                <div className="mb-1 flex justify-between text-xs">
+                <div className="mb-1 flex justify-between text-sm">
                   <span className="text-text-secondary">Gym 6mo consistency</span>
                   <span className="text-text-primary">
                     {gymPerformanceScore}% → {stageData.stages[0].unlockConditions.gymConsistency}%
@@ -538,7 +559,7 @@ export default function Review() {
             )}
           </div>
 
-          <div className="mt-4 text-xs text-text-secondary">
+          <div className="mt-4 text-sm text-text-secondary">
             Unlock: ≤{stageData.stages[0].unlockConditions.weight}kg, BF &lt;{stageData.stages[0].unlockConditions.bodyFat}%, 6 months consistent
           </div>
         </div>
@@ -555,7 +576,7 @@ export default function Review() {
                     : 'w-full rounded-brand bg-card p-2 opacity-50'
               }
             >
-              <div className="text-xs font-semibold text-text-primary">
+              <div className="text-sm font-semibold text-text-primary">
                 Stage {stage.number}: {stage.name}
               </div>
             </div>
@@ -565,15 +586,15 @@ export default function Review() {
 
       {/* 6. Work Readiness */}
       <div>
-        <div className="mb-3 text-xs font-semibold tracking-widest text-text-secondary">WORK READINESS</div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">WORK READINESS</div>
 
         {Object.values(stageData.workReadiness).every((v) => v === 0) ? (
           <div className="rounded-brand bg-card p-6 text-center">
-            <div className="mb-4 text-sm text-text-secondary">Ask GRND to assess your work readiness</div>
+            <div className="mb-4 text-base text-text-secondary">Ask GRND to assess your work readiness</div>
             <button
               type="button"
               onClick={() => navigate('/coach')}
-              className="rounded-brand border border-primary px-4 py-2 text-sm text-primary"
+              className="rounded-brand border border-primary px-4 py-2 text-base text-primary"
             >
               Ask GRND to assess
             </button>
@@ -596,7 +617,7 @@ export default function Review() {
                   }}
                   className="w-full rounded-brand bg-card p-3 text-left"
                 >
-                  <div className="mb-2 flex justify-between text-xs">
+                  <div className="mb-2 flex justify-between text-sm">
                     <span className="text-text-primary">{label}</span>
                     <span className="text-text-secondary">{value}/10</span>
                   </div>
@@ -619,10 +640,10 @@ export default function Review() {
 
       {/* 7. Blood Results */}
       <div>
-        <div className="mb-3 text-xs font-semibold tracking-widest text-text-secondary">BLOOD RESULTS</div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">BLOOD RESULTS</div>
 
         {bloodResults.length === 0 ? (
-          <div className="rounded-brand bg-card p-6 text-center text-sm text-text-secondary">
+          <div className="rounded-brand bg-card p-6 text-center text-base text-text-secondary">
             No results uploaded yet. Upload blood results in the Learn tab.
           </div>
         ) : (
@@ -630,7 +651,7 @@ export default function Review() {
             {bloodResults.map((marker, idx) => (
               <div key={idx} className="rounded-brand bg-card p-3">
                 <div className="mb-1 flex items-start justify-between">
-                  <div className="text-sm font-semibold text-text-primary">{marker.name}</div>
+                  <div className="text-base font-semibold text-text-primary">{marker.name}</div>
                   <div className="rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-semibold text-background">
                     NORMAL
                   </div>
@@ -638,7 +659,7 @@ export default function Review() {
                 <div className="text-lg font-bold text-primary">
                   {marker.value} {marker.unit}
                 </div>
-                <div className="mt-1 text-xs text-text-secondary">
+                <div className="mt-1 text-sm text-text-secondary">
                   Optimal: {marker.optimalMin}-{marker.optimalMax} {marker.unit} · {new Date(marker.date).toLocaleDateString()}
                 </div>
               </div>
@@ -649,10 +670,10 @@ export default function Review() {
 
       {/* 8. Peer Comparison */}
       <div>
-        <div className="mb-3 text-xs font-semibold tracking-widest text-text-secondary">PEER COMPARISON</div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">PEER COMPARISON</div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-text-secondary/20">
                 <th className="pb-2 text-left text-text-secondary">METRIC</th>
@@ -795,67 +816,94 @@ export default function Review() {
 
             <div className="flex-1 space-y-3 overflow-y-auto px-6">
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Date</label>
+                <label className="mb-1 block text-sm text-text-secondary">Date</label>
                 <input
                   type="date"
                   value={newMeasurement.date}
                   onChange={(e) => setNewMeasurement({ ...newMeasurement, date: e.target.value })}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Weight (kg)</label>
+                <label className="mb-1 block text-sm text-text-secondary">Weight (kg)</label>
                 <input
                   type="number"
                   value={newMeasurement.weight || ''}
                   onChange={(e) => setNewMeasurement({ ...newMeasurement, weight: parseFloat(e.target.value) || undefined })}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Body Fat (%)</label>
+                <label className="mb-1 block text-sm text-text-secondary">
+                  Body Fat (%) {!bodyFatManual && newMeasurement.waist && newMeasurement.neck ? <span className="text-zinc-500">— auto (Navy)</span> : null}
+                </label>
                 <input
                   type="number"
                   value={newMeasurement.bodyFat || ''}
-                  onChange={(e) => setNewMeasurement({ ...newMeasurement, bodyFat: parseFloat(e.target.value) || undefined })}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-text-secondary">Waist (cm)</label>
-                <input
-                  type="number"
-                  value={newMeasurement.waist || ''}
-                  onChange={(e) => setNewMeasurement({ ...newMeasurement, waist: parseFloat(e.target.value) || undefined })}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-text-secondary">Resting HR (bpm)</label>
-                <input
-                  type="number"
-                  value={newMeasurement.restingHR || ''}
-                  onChange={(e) => setNewMeasurement({ ...newMeasurement, restingHR: parseFloat(e.target.value) || undefined })}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  onChange={(e) => {
+                    setBodyFatManual(true);
+                    setNewMeasurement({ ...newMeasurement, bodyFat: parseFloat(e.target.value) || undefined });
+                  }}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                  placeholder="Auto-calculated from waist + neck"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs text-text-secondary">Systolic</label>
+                  <label className="mb-1 block text-sm text-text-secondary">Waist (cm)</label>
+                  <input
+                    type="number"
+                    value={newMeasurement.waist || ''}
+                    onChange={(e) => {
+                      const waist = parseFloat(e.target.value) || undefined;
+                      const neck = newMeasurement.neck;
+                      const bf = !bodyFatManual && waist && neck ? calcNavyBodyFat(waist, neck) : newMeasurement.bodyFat;
+                      setNewMeasurement({ ...newMeasurement, waist, bodyFat: bf });
+                    }}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm text-text-secondary">Neck (mm)</label>
+                  <input
+                    type="number"
+                    value={newMeasurement.neck || ''}
+                    onChange={(e) => {
+                      const neck = parseFloat(e.target.value) || undefined;
+                      const waist = newMeasurement.waist;
+                      const bf = !bodyFatManual && waist && neck ? calcNavyBodyFat(waist, neck) : newMeasurement.bodyFat;
+                      setNewMeasurement({ ...newMeasurement, neck, bodyFat: bf });
+                    }}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-text-secondary">Resting HR (bpm)</label>
+                <input
+                  type="number"
+                  value={newMeasurement.restingHR || ''}
+                  onChange={(e) => setNewMeasurement({ ...newMeasurement, restingHR: parseFloat(e.target.value) || undefined })}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm text-text-secondary">Systolic</label>
                   <input
                     type="number"
                     value={newMeasurement.systolic || ''}
                     onChange={(e) => setNewMeasurement({ ...newMeasurement, systolic: parseFloat(e.target.value) || undefined })}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-text-secondary">Diastolic</label>
+                  <label className="mb-1 block text-sm text-text-secondary">Diastolic</label>
                   <input
                     type="number"
                     value={newMeasurement.diastolic || ''}
                     onChange={(e) => setNewMeasurement({ ...newMeasurement, diastolic: parseFloat(e.target.value) || undefined })}
-                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
                 </div>
               </div>
@@ -893,7 +941,7 @@ export default function Review() {
 
             <div className="flex-1 space-y-3 overflow-y-auto px-6">
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Status</label>
+                <label className="mb-1 block text-sm text-text-secondary">Status</label>
                 <select
                   value={editingPyramid?.status || showPyramidDetail.status}
                   onChange={(e) =>
@@ -902,7 +950,7 @@ export default function Review() {
                       status: e.target.value as PyramidLayer['status'],
                     })
                   }
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 >
                   <option value="stable">Stable</option>
                   <option value="building">Building</option>
@@ -911,7 +959,7 @@ export default function Review() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Active Actions</label>
+                <label className="mb-1 block text-sm text-text-secondary">Active Actions</label>
                 <textarea
                   value={editingPyramid?.activeActions || showPyramidDetail.activeActions}
                   onChange={(e) =>
@@ -921,11 +969,11 @@ export default function Review() {
                     })
                   }
                   rows={3}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-text-secondary">Evidence Logged</label>
+                <label className="mb-1 block text-sm text-text-secondary">Evidence Logged</label>
                 <textarea
                   value={editingPyramid?.evidence || showPyramidDetail.evidence}
                   onChange={(e) =>
@@ -935,7 +983,7 @@ export default function Review() {
                     })
                   }
                   rows={3}
-                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                 />
               </div>
             </div>
@@ -979,14 +1027,14 @@ export default function Review() {
               {showEditDimension.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()).trim()}
             </div>
             <div className="mb-4">
-              <label className="mb-2 block text-xs text-text-secondary">Score (1-10)</label>
+              <label className="mb-2 block text-sm text-text-secondary">Score (1-10)</label>
               <input
                 type="number"
                 min="0"
                 max="10"
                 value={dimensionScore}
                 onChange={(e) => setDimensionScore(parseInt(e.target.value) || 0)}
-                className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
               />
             </div>
             <div className="flex gap-3">
@@ -1023,14 +1071,14 @@ export default function Review() {
               Edit {showEditBenchmark.type === 'fit40' ? 'Fit 40' : 'Elite 40'} Benchmark
             </div>
             <div className="mb-4">
-              <label className="mb-2 block text-xs text-text-secondary">
+              <label className="mb-2 block text-sm text-text-secondary">
                 {showEditBenchmark.field.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()).trim()}
               </label>
               <input
                 type="number"
                 value={benchmarkValue}
                 onChange={(e) => setBenchmarkValue(parseFloat(e.target.value) || 0)}
-                className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
               />
             </div>
             <div className="flex gap-3">

@@ -166,7 +166,7 @@ export default function Coach() {
             onClick={() => setShowPortrait(true)}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-background"
           >
-            <span className="text-sm font-bold">{portrait.name.charAt(0)}</span>
+            <span className="text-base font-bold">{portrait.name.charAt(0)}</span>
           </button>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function Coach() {
             key={mode.id}
             type="button"
             onClick={() => handleToggleMode(mode.id)}
-            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm ${
+            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-base ${
               mode.active
                 ? 'border-2 border-primary bg-primary/20 text-primary'
                 : 'border border-text-secondary bg-card text-text-primary'
@@ -239,7 +239,7 @@ export default function Coach() {
                   : 'bg-[#141414] border border-[#2a2a2a] text-white'
               }`}
             >
-              <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+              <div className="whitespace-pre-wrap text-base">{msg.content}</div>
               {msg.role === 'assistant' && (
                 <button
                   type="button"
@@ -269,7 +269,7 @@ export default function Coach() {
         )}
 
         {error && (
-          <div className="rounded-brand bg-red-500/20 p-3 text-sm text-red-500">
+          <div className="rounded-brand bg-red-500/20 p-3 text-base text-red-500">
             {error}
             <button
               type="button"
@@ -311,7 +311,7 @@ export default function Coach() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowClearConfirm(false)}>
           <div className="w-full max-w-sm rounded-brand bg-card p-6" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 text-lg font-bold text-text-primary">Clear conversation history?</div>
-            <div className="mb-6 text-sm text-text-secondary">This cannot be undone.</div>
+            <div className="mb-6 text-base text-text-secondary">This cannot be undone.</div>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -350,7 +350,7 @@ export default function Coach() {
             <div className="space-y-4">
               {Object.entries(portrait).map(([key, value]) => (
                 <div key={key}>
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                  <div className="mb-1 text-sm font-semibold uppercase tracking-wide text-text-secondary">
                     {key.replace(/([A-Z])/g, ' $1').trim()}
                   </div>
                   {editingPortraitField === key ? (
@@ -360,12 +360,12 @@ export default function Coach() {
                       onChange={(e) => handleUpdatePortraitField(key as keyof PortraitMemory, key === 'age' ? Number(e.target.value) : e.target.value)}
                       onBlur={() => setEditingPortraitField(null)}
                       autoFocus
-                      className="w-full rounded-brand border border-primary bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      className="w-full rounded-brand border border-primary bg-background px-3 py-2 text-base text-text-primary outline-none"
                     />
                   ) : (
                     <div
                       onClick={() => setEditingPortraitField(key as keyof PortraitMemory)}
-                      className="cursor-pointer rounded-brand bg-background px-3 py-2 text-sm text-text-primary hover:border hover:border-text-secondary"
+                      className="cursor-pointer rounded-brand bg-background px-3 py-2 text-base text-text-primary hover:border hover:border-text-secondary"
                     >
                       {value || 'Tap to edit'}
                     </div>
@@ -394,7 +394,7 @@ export default function Coach() {
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary">Emoji</label>
+                <label className="mb-1 block text-sm font-semibold uppercase tracking-wide text-text-secondary">Emoji</label>
                 <input
                   type="text"
                   value={editModeForm.emoji}
@@ -404,7 +404,7 @@ export default function Coach() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary">Name</label>
+                <label className="mb-1 block text-sm font-semibold uppercase tracking-wide text-text-secondary">Name</label>
                 <input
                   type="text"
                   value={editModeForm.name}
@@ -414,7 +414,7 @@ export default function Coach() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary">Purpose</label>
+                <label className="mb-1 block text-sm font-semibold uppercase tracking-wide text-text-secondary">Purpose</label>
                 <textarea
                   value={editModeForm.purpose}
                   onChange={(e) => setEditModeForm({ ...editModeForm, purpose: e.target.value })}
@@ -424,7 +424,7 @@ export default function Coach() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary">Situations it's for</label>
+                <label className="mb-1 block text-sm font-semibold uppercase tracking-wide text-text-secondary">Situations it's for</label>
                 <textarea
                   value={editModeForm.situations}
                   onChange={(e) => setEditModeForm({ ...editModeForm, situations: e.target.value })}
@@ -434,7 +434,7 @@ export default function Coach() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-secondary">Desired Outcome</label>
+                <label className="mb-1 block text-sm font-semibold uppercase tracking-wide text-text-secondary">Desired Outcome</label>
                 <textarea
                   value={editModeForm.desiredOutcome}
                   onChange={(e) => setEditModeForm({ ...editModeForm, desiredOutcome: e.target.value })}
