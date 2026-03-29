@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatHeaderDate, getGrndDayKey, previousDayKey } from '@/utils/dayKey';
 import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checklistTypes';
@@ -167,6 +167,24 @@ export default function Today() {
   const [deviationMealId, setDeviationMealId] = useState<string | null>(null);
   const [deviationText, setDeviationText] = useState('');
   const [foodHistory, setFoodHistory] = useState<string[]>([]);
+
+  // Daily note
+  const dailyNoteKey = `grnd_daily_note_${dayKey}`;
+  const [dailyNote, setDailyNote] = useState<string>(() => localStorage.getItem(`grnd_daily_note_${dayKey}`) ?? '');
+  const dailyNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDailyNoteChange = (value: string) => {
+    setDailyNote(value);
+    if (dailyNoteTimer.current) clearTimeout(dailyNoteTimer.current);
+    dailyNoteTimer.current = setTimeout(() => {
+      localStorage.setItem(dailyNoteKey, value);
+    }, 500);
+  };
+
+  const handleDailyNoteBlur = () => {
+    if (dailyNoteTimer.current) clearTimeout(dailyNoteTimer.current);
+    localStorage.setItem(dailyNoteKey, dailyNote);
+  };
 
   // Edit mode state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -2261,6 +2279,18 @@ export default function Today() {
           </div>
         </div>
       ) : null}
+      {/* Daily Note */}
+      <Card>
+        <div className="text-sm text-text-secondary mb-2">How did today actually go?</div>
+        <input
+          type="text"
+          value={dailyNote}
+          onChange={(e) => handleDailyNoteChange(e.target.value)}
+          onBlur={handleDailyNoteBlur}
+          placeholder="One line is enough."
+          className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+        />
+      </Card>
         </>
       )}
 

@@ -317,6 +317,7 @@ export function getCoachContext(): {
   field: any;
   learn: any;
   stage: any;
+  dailyNotes: Array<{ date: string; note: string }> | null;
   priorities: PrioritySignal[];
   phaseMode: {
     active: boolean;
@@ -898,6 +899,24 @@ export function getCoachContext(): {
           waist: latest.waist,
         } : null,
       };
+    })(),
+
+    dailyNotes: (() => {
+      const notes: Array<{ date: string; note: string }> = [];
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const raw = localStorage.getItem(`grnd_daily_note_${dayKey}`);
+        if (raw && raw.trim()) {
+          notes.push({ date: dayKey, note: raw.trim() });
+        }
+      }
+      return notes.length > 0 ? notes : null;
     })(),
 
     priorities: (() => {
