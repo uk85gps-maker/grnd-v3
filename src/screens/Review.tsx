@@ -185,10 +185,10 @@ export default function Review() {
   }, [latestStats, stageData, gymPerformanceScore]);
 
   // US Navy formula (male): BF% = 495 / (1.0324 - 0.19077×log10(waist_cm - neck_cm) + 0.15456×log10(height_cm)) - 450
-  // waist is stored in cm, neck is stored in mm → convert neck to cm
-  const calcNavyBodyFat = (waistCm: number, neckMm: number, heightCm = 173): number => {
+  // waist and neck are stored in mm → divide by 10 to get cm
+  const calcNavyBodyFat = (waistMm: number, neckMm: number, heightCm = 173): number => {
     const neckCm = neckMm / 10;
-    const diff = waistCm - neckCm;
+    const diff = waistMm / 10 - neckCm;
     if (diff <= 0) return 0;
     const bf = 495 / (1.0324 - 0.19077 * Math.log10(diff) + 0.15456 * Math.log10(heightCm)) - 450;
     return Math.round(bf * 10) / 10;
@@ -405,7 +405,21 @@ export default function Review() {
           <div className="text-sm font-semibold tracking-widest text-text-secondary">BODY STATS</div>
           <button
             type="button"
-            onClick={() => setShowLogMeasurements(true)}
+            onClick={() => {
+              const prev = getLatestBodyStats();
+              setNewMeasurement({
+                date: new Date().toISOString().split('T')[0],
+                weight: prev?.weight,
+                bodyFat: prev?.bodyFat,
+                waist: prev?.waist,
+                neck: prev?.neck,
+                restingHR: prev?.restingHR,
+                systolic: prev?.systolic,
+                diastolic: prev?.diastolic,
+              });
+              setBodyFatManual(false);
+              setShowLogMeasurements(true);
+            }}
             className="rounded-brand border border-primary px-3 py-1 text-sm text-primary"
           >
             Log Measurements
@@ -431,7 +445,7 @@ export default function Review() {
           <div className="rounded-brand bg-card p-3">
             <div className="text-[10px] tracking-widest text-text-secondary">WAIST</div>
             <div className="mt-1 text-xl font-bold text-text-primary">
-              {latestStats?.waist ? `${latestStats.waist}cm` : '—'}
+              {latestStats?.waist ? `${latestStats.waist}mm` : '—'}
             </div>
           </div>
           <div className="rounded-brand bg-card p-3">
@@ -741,7 +755,7 @@ export default function Review() {
               </tr>
               <tr className="border-b border-text-secondary/20">
                 <td className="py-3 text-text-primary">Waist</td>
-                <td className="py-3 text-center text-text-primary">{latestStats?.waist ? `${latestStats.waist}cm` : '—'}</td>
+                <td className="py-3 text-center text-text-primary">{latestStats?.waist ? `${latestStats.waist}mm` : '—'}</td>
                 <td className="py-3 text-center">
                   <button
                     type="button"
@@ -850,7 +864,7 @@ export default function Review() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm text-text-secondary">Waist (cm)</label>
+                  <label className="mb-1 block text-sm text-text-secondary">Waist (mm)</label>
                   <input
                     type="number"
                     value={newMeasurement.waist || ''}
