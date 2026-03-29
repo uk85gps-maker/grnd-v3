@@ -1,20 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { getGrndDayKey } from '@/utils/dayKey';
 import { FoodPlanItem, runMigrationIfNeeded } from '@/utils/foodMigration';
 import { getMacroTargets, MacroTargets } from '@/utils/mealPlan';
-
-interface FoodLogEntry {
-  id: string;
-  name: string;
-  time: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  fibre: number;
-  type: 'on-plan' | 'deviation' | 'fast';
-  planItemId?: string;
-}
+import {
+  loadFoodLog,
+  saveFoodLog,
+  calculateDailyTotals,
+  calculateFastingHours,
+  updateMealFirstLastFlags,
+  getCurrentTime,
+  estimateMacros,
+  MealLog,
+  FoodMacros,
+} from '@/utils/foodLog';
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
@@ -26,9 +24,8 @@ function Card({ children }: { children: React.ReactNode }) {
 
 export default function FoodTab() {
   const dayKey = useMemo(() => getGrndDayKey(), []);
-  const foodLogKey = `grnd_food_log_${dayKey}`;
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Run migration and load food plan synchronously
   const [foodPlan, setFoodPlan] = useState<FoodPlanItem[]>(() => {
     runMigrationIfNeeded();
     const raw = localStorage.getItem('grnd_food_plan');
@@ -42,6 +39,10 @@ export default function FoodTab() {
     return [];
   });
 
+  const foodLog = useMemo(() => loadFoodLog(dayKey), [dayKey, refreshKey]);
+  const targets = useMemo<MacroTargets>(() => getMacroTargets(), []);
+
+  // Edit plan modal state
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodPlanItem | null>(null);
   const [isAddingMeal, setIsAddingMeal] = useState(false);
@@ -54,30 +55,39 @@ export default function FoodTab() {
   const [newItemFat, setNewItemFat] = useState('');
   const [newItemFibre, setNewItemFibre] = useState('');
 
-  // Load targets
-  const targets = useMemo<MacroTargets>(() => getMacroTargets(), []);
+  // Food logging modals
+  const [hadThisMealId, setHadThisMealId] = useState<string | null>(null);
+  const [hadThisTime, setHadThisTime] = useState('');
+  const [somethingElseMealId, setSomethingElseMealId] = useState<string | null>(null);
+  const [deviationItems, setDeviationItems] = useState<string[]>(['']);
+  const [estimating, setEstimating] = useState(false);
+  const [estimatedMacros, setEstimatedMacros] = useState<FoodMacros | null>(null);
+  const [estimationFailed, setEstimationFailed] = useState(false);
+  const [manualCalories, setManualCalories] = useState('');
+  const [manualProtein, setManualProtein] = useState('');
+  const [manualCarbs, setManualCarbs] = useState('');
+  const [manualFat, setManualFat] = useState('');
+  const [manualFibre, setManualFibre] = useState('');
+  const [deviationTime, setDeviationTime] = useState('');
+  const [fastConfirmMealId, setFastConfirmMealId] = useState<string | null>(null);
+  const [editLogMealId, setEditLogMealId] = useState<string | null>(null);
+  const [editLogTime, setEditLogTime] = useState('');
+  const [editLogCalories, setEditLogCalories] = useState('');
+  const [editLogProtein, setEditLogProtein] = useState('');
+  const [editLogCarbs, setEditLogCarbs] = useState('');
+  const [editLogFat, setEditLogFat] = useState('');
+  const [editLogFibre, setEditLogFibre] = useState('');
 
-  // Load daily totals from food log
-  const dailyTotals = useMemo(() => {
-    const raw = localStorage.getItem(foodLogKey);
-    if (!raw) {
-      return { calories: 0, protein: 0 };
-    }
-    try {
-      const entries = JSON.parse(raw) as FoodLogEntry[];
-      return entries.reduce(
-        (acc, e) => ({
-          calories: acc.calories + e.calories,
-          protein: acc.protein + e.protein,
-        }),
-        { calories: 0, protein: 0 }
-      );
-    } catch {
-      return { calories: 0, protein: 0 };
-    }
-  }, [foodLogKey]);
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
-  // Separate meals and supplements
+  useEffect(() => {
+    if (somethingElseMealId && firstInputRef.current) {
+      setTimeout(() => {
+        firstInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [somethingElseMealId]);
+
   const meals = useMemo(() => {
     return foodPlan
       .filter((item) => item.type === 'meal')
@@ -90,6 +100,15 @@ export default function FoodTab() {
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [foodPlan]);
 
+  const getMealStatus = (mealId: string): MealLog | null => {
+    return foodLog.meals.find((m) => m.id === mealId) || null;
+  };
+
+  const getSupplementStatus = (suppId: string): boolean => {
+    const supp = foodLog.supplements.find((s) => s.id === suppId);
+    return supp?.confirmed || false;
+  };
+
   const reloadFoodPlan = () => {
     const raw = localStorage.getItem('grnd_food_plan');
     if (raw) {
@@ -101,6 +120,10 @@ export default function FoodTab() {
     } else {
       setFoodPlan([]);
     }
+  };
+
+  const refreshLog = () => {
+    setRefreshKey((k) => k + 1);
   };
 
   const handleOpenEditPlan = () => {
@@ -162,7 +185,6 @@ export default function FoodTab() {
     const updated = [...foodPlan, newItem];
     localStorage.setItem('grnd_food_plan', JSON.stringify(updated));
     
-    // Save to edit history
     const history = {
       timestamp: new Date().toISOString(),
       action: 'add',
@@ -214,7 +236,6 @@ export default function FoodTab() {
 
     localStorage.setItem('grnd_food_plan', JSON.stringify(updated));
     
-    // Save to edit history
     const history = {
       timestamp: new Date().toISOString(),
       action: 'edit',
@@ -232,35 +253,325 @@ export default function FoodTab() {
   };
 
   const handleDeleteItem = (itemId: string) => {
-    // Check if item has any log entries
-    const hasLogEntries = false; // TODO: Check grnd_food_log for this item
+    const updated = foodPlan.filter((item) => item.id !== itemId);
+    localStorage.setItem('grnd_food_plan', JSON.stringify(updated));
     
-    if (hasLogEntries) {
-      // Soft delete
-      const updated = foodPlan.map((item) =>
-        item.id === itemId ? { ...item, deleted: true } as any : item
-      );
-      localStorage.setItem('grnd_food_plan', JSON.stringify(updated));
-      setFoodPlan(updated);
-    } else {
-      // Hard delete
-      const updated = foodPlan.filter((item) => item.id !== itemId);
-      localStorage.setItem('grnd_food_plan', JSON.stringify(updated));
-      
-      // Save to edit history
-      const deletedItem = foodPlan.find((i) => i.id === itemId);
-      const history = {
-        timestamp: new Date().toISOString(),
-        action: 'delete',
-        item: deletedItem,
-      };
-      const historyRaw = localStorage.getItem('grnd_food_plan_edit_history');
-      const historyArray = historyRaw ? JSON.parse(historyRaw) : [];
-      historyArray.push(history);
-      localStorage.setItem('grnd_food_plan_edit_history', JSON.stringify(historyArray));
+    const deletedItem = foodPlan.find((i) => i.id === itemId);
+    const history = {
+      timestamp: new Date().toISOString(),
+      action: 'delete',
+      item: deletedItem,
+    };
+    const historyRaw = localStorage.getItem('grnd_food_plan_edit_history');
+    const historyArray = historyRaw ? JSON.parse(historyRaw) : [];
+    historyArray.push(history);
+    localStorage.setItem('grnd_food_plan_edit_history', JSON.stringify(historyArray));
 
-      setFoodPlan(updated);
+    setFoodPlan(updated);
+  };
+
+  // HAD THIS
+  const handleHadThisClick = (mealId: string) => {
+    const isFirstMealOfDay = foodLog.meals.filter((m) => m.loggedTime).length === 0;
+    if (isFirstMealOfDay) {
+      setHadThisMealId(mealId);
+      setHadThisTime(getCurrentTime());
+    } else {
+      logHadThis(mealId, getCurrentTime());
     }
+  };
+
+  const logHadThis = (mealId: string, time: string) => {
+    const meal = meals.find((m) => m.id === mealId);
+    if (!meal) return;
+
+    const newMeal: MealLog = {
+      id: mealId,
+      name: meal.name,
+      plannedTime: meal.time,
+      loggedTime: time,
+      status: 'plan',
+      items: [],
+      macros: meal.plannedMacros,
+      source: 'plan',
+      isFirstMeal: false,
+      isLastMeal: false,
+    };
+
+    let updatedMeals = [...foodLog.meals];
+    const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
+    if (existingIndex >= 0) {
+      updatedMeals[existingIndex] = newMeal;
+    } else {
+      updatedMeals.push(newMeal);
+    }
+
+    updatedMeals = updateMealFirstLastFlags(updatedMeals);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    const fastingHours = calculateFastingHours(updatedMeals);
+
+    const updatedLog = {
+      ...foodLog,
+      meals: updatedMeals,
+      dailyTotals,
+      fastingHours,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    setHadThisMealId(null);
+    setHadThisTime('');
+    refreshLog();
+  };
+
+  const handleConfirmHadThis = () => {
+    if (hadThisMealId && hadThisTime) {
+      logHadThis(hadThisMealId, hadThisTime);
+    }
+  };
+
+  // SOMETHING ELSE
+  const handleSomethingElseClick = (mealId: string) => {
+    setSomethingElseMealId(mealId);
+    setDeviationItems(['']);
+    setEstimatedMacros(null);
+    setEstimationFailed(false);
+    setManualCalories('');
+    setManualProtein('');
+    setManualCarbs('');
+    setManualFat('');
+    setManualFibre('');
+    setDeviationTime('');
+  };
+
+  const handleAddDeviationItem = () => {
+    setDeviationItems([...deviationItems, '']);
+  };
+
+  const handleDeviationItemChange = (index: number, value: string) => {
+    const updated = [...deviationItems];
+    updated[index] = value;
+    setDeviationItems(updated);
+  };
+
+  const handleEstimateMacros = async () => {
+    const filledItems = deviationItems.filter((item) => item.trim());
+    if (filledItems.length === 0) return;
+
+    setEstimating(true);
+    setEstimationFailed(false);
+
+    try {
+      const macros = await estimateMacros(filledItems);
+      setEstimatedMacros(macros);
+      setManualCalories(macros.calories.toString());
+      setManualProtein(macros.protein.toString());
+      setManualCarbs(macros.carbs.toString());
+      setManualFat(macros.fat.toString());
+      setManualFibre(macros.fibre.toString());
+    } catch {
+      setEstimationFailed(true);
+      setEstimatedMacros(null);
+    } finally {
+      setEstimating(false);
+    }
+  };
+
+  const handleSaveDeviation = () => {
+    if (!somethingElseMealId) return;
+    if (!manualCalories || !manualProtein || !manualCarbs || !manualFat || !manualFibre) return;
+
+    const meal = meals.find((m) => m.id === somethingElseMealId);
+    if (!meal) return;
+
+    const isFirstMealOfDay = foodLog.meals.filter((m) => m.loggedTime).length === 0;
+    const time = isFirstMealOfDay ? (deviationTime || getCurrentTime()) : getCurrentTime();
+
+    const filledItems = deviationItems.filter((item) => item.trim());
+
+    const newMeal: MealLog = {
+      id: somethingElseMealId,
+      name: filledItems.join(', '),
+      plannedTime: meal.time,
+      loggedTime: time,
+      status: 'deviation',
+      items: filledItems,
+      macros: {
+        calories: parseFloat(manualCalories),
+        protein: parseFloat(manualProtein),
+        carbs: parseFloat(manualCarbs),
+        fat: parseFloat(manualFat),
+        fibre: parseFloat(manualFibre),
+      },
+      source: estimatedMacros ? 'ai_estimate' : 'manual',
+      isFirstMeal: false,
+      isLastMeal: false,
+    };
+
+    let updatedMeals = [...foodLog.meals];
+    const existingIndex = updatedMeals.findIndex((m) => m.id === somethingElseMealId);
+    if (existingIndex >= 0) {
+      updatedMeals[existingIndex] = newMeal;
+    } else {
+      updatedMeals.push(newMeal);
+    }
+
+    updatedMeals = updateMealFirstLastFlags(updatedMeals);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    const fastingHours = calculateFastingHours(updatedMeals);
+
+    const updatedLog = {
+      ...foodLog,
+      meals: updatedMeals,
+      dailyTotals,
+      fastingHours,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    setSomethingElseMealId(null);
+    refreshLog();
+  };
+
+  // FAST
+  const handleFastClick = (mealId: string) => {
+    setFastConfirmMealId(mealId);
+  };
+
+  const handleConfirmFast = () => {
+    if (!fastConfirmMealId) return;
+
+    const meal = meals.find((m) => m.id === fastConfirmMealId);
+    if (!meal) return;
+
+    const newMeal: MealLog = {
+      id: fastConfirmMealId,
+      name: meal.name,
+      plannedTime: meal.time,
+      loggedTime: getCurrentTime(),
+      status: 'fast',
+      items: [],
+      macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+      source: 'plan',
+      isFirstMeal: false,
+      isLastMeal: false,
+    };
+
+    let updatedMeals = [...foodLog.meals];
+    const existingIndex = updatedMeals.findIndex((m) => m.id === fastConfirmMealId);
+    if (existingIndex >= 0) {
+      updatedMeals[existingIndex] = newMeal;
+    } else {
+      updatedMeals.push(newMeal);
+    }
+
+    updatedMeals = updateMealFirstLastFlags(updatedMeals);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    const fastingHours = calculateFastingHours(updatedMeals);
+
+    const updatedLog = {
+      ...foodLog,
+      meals: updatedMeals,
+      dailyTotals,
+      fastingHours,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    setFastConfirmMealId(null);
+    refreshLog();
+  };
+
+  const handleUndoFast = (mealId: string) => {
+    const updatedMeals = foodLog.meals.filter((m) => m.id !== mealId);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    const fastingHours = calculateFastingHours(updatedMeals);
+
+    const updatedLog = {
+      ...foodLog,
+      meals: updatedMeals,
+      dailyTotals,
+      fastingHours,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    refreshLog();
+  };
+
+  // EDIT LOG
+  const handleEditLog = (mealId: string) => {
+    const mealLog = foodLog.meals.find((m) => m.id === mealId);
+    if (!mealLog) return;
+
+    setEditLogMealId(mealId);
+    setEditLogTime(mealLog.loggedTime || '');
+    setEditLogCalories(mealLog.macros.calories.toString());
+    setEditLogProtein(mealLog.macros.protein.toString());
+    setEditLogCarbs(mealLog.macros.carbs.toString());
+    setEditLogFat(mealLog.macros.fat.toString());
+    setEditLogFibre(mealLog.macros.fibre.toString());
+  };
+
+  const handleSaveEditLog = () => {
+    if (!editLogMealId) return;
+
+    let updatedMeals = foodLog.meals.map((m) =>
+      m.id === editLogMealId
+        ? {
+            ...m,
+            loggedTime: editLogTime,
+            macros: {
+              calories: parseFloat(editLogCalories),
+              protein: parseFloat(editLogProtein),
+              carbs: parseFloat(editLogCarbs),
+              fat: parseFloat(editLogFat),
+              fibre: parseFloat(editLogFibre),
+            },
+          }
+        : m
+    );
+
+    updatedMeals = updateMealFirstLastFlags(updatedMeals);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    const fastingHours = calculateFastingHours(updatedMeals);
+
+    const updatedLog = {
+      ...foodLog,
+      meals: updatedMeals,
+      dailyTotals,
+      fastingHours,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    setEditLogMealId(null);
+    refreshLog();
+  };
+
+  // SUPPLEMENTS
+  const handleToggleSupplement = (suppId: string) => {
+    const existing = foodLog.supplements.find((s) => s.id === suppId);
+    const supp = supplements.find((s) => s.id === suppId);
+    if (!supp) return;
+
+    let updatedSupplements = [...foodLog.supplements];
+
+    if (existing) {
+      updatedSupplements = updatedSupplements.map((s) =>
+        s.id === suppId ? { ...s, confirmed: !s.confirmed } : s
+      );
+    } else {
+      updatedSupplements.push({
+        id: suppId,
+        name: supp.name,
+        time: supp.time,
+        confirmed: true,
+      });
+    }
+
+    const updatedLog = {
+      ...foodLog,
+      supplements: updatedSupplements,
+    };
+
+    saveFoodLog(updatedLog, dayKey);
+    refreshLog();
   };
 
   return (
@@ -271,18 +582,20 @@ export default function FoodTab() {
           <div>
             <div className="text-xs text-text-secondary">CALORIES</div>
             <div className="mt-1 text-lg font-bold text-primary">
-              {dailyTotals.calories} / {targets.calories}
+              {foodLog.dailyTotals.calories} / {targets.calories}
             </div>
           </div>
           <div>
             <div className="text-xs text-text-secondary">PROTEIN</div>
             <div className="mt-1 text-lg font-bold text-primary">
-              {dailyTotals.protein}g / {targets.protein}g
+              {foodLog.dailyTotals.protein}g / {targets.protein}g
             </div>
           </div>
           <div>
             <div className="text-xs text-text-secondary">FASTING</div>
-            <div className="mt-1 text-lg font-bold text-text-secondary">-- hrs</div>
+            <div className="mt-1 text-lg font-bold text-text-secondary">
+              {foodLog.fastingHours !== null ? `${foodLog.fastingHours} hrs` : '-- hrs'}
+            </div>
           </div>
         </div>
       </Card>
@@ -308,42 +621,94 @@ export default function FoodTab() {
         <Card>
           <div className="mb-3 text-base font-bold text-white">🍽️ Meals</div>
           <div className="space-y-3">
-            {meals.map((meal) => (
-              <div key={meal.id} className="rounded-brand bg-background p-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold text-text-primary">{meal.name}</div>
-                    <div className="mt-1 text-xs text-text-secondary">
-                      {meal.time} • {meal.plannedMacros.calories}cal • P:{meal.plannedMacros.protein}g C:{meal.plannedMacros.carbs}g F:{meal.plannedMacros.fat}g
+            {meals.map((meal) => {
+              const mealLog = getMealStatus(meal.id);
+              const isLogged = mealLog && mealLog.status !== 'unlogged';
+              const isFasted = mealLog?.status === 'fast';
+
+              return (
+                <div key={meal.id} className="rounded-brand bg-background p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-text-primary">{meal.name}</div>
+                      <div className="mt-1 text-xs text-text-secondary">
+                        {meal.time} • {meal.plannedMacros.calories}cal • P:{meal.plannedMacros.protein}g C:{meal.plannedMacros.carbs}g F:{meal.plannedMacros.fat}g
+                      </div>
+                      {mealLog && mealLog.status === 'deviation' && (
+                        <div className="mt-1 text-xs text-primary">
+                          Had: {mealLog.items.join(', ')}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {!isLogged && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleHadThisClick(meal.id)}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                      >
+                        Had this
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSomethingElseClick(meal.id)}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                      >
+                        Something else
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFastClick(meal.id)}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-primary"
+                      >
+                        Fast
+                      </button>
+                    </div>
+                  )}
+
+                  {isLogged && !isFasted && (
+                    <button
+                      type="button"
+                      onClick={() => handleEditLog(meal.id)}
+                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"
+                    >
+                      Logged ✓
+                    </button>
+                  )}
+
+                  {isFasted && (
+                    <button
+                      type="button"
+                      onClick={() => handleUndoFast(meal.id)}
+                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"
+                    >
+                      Fasted ✓
+                    </button>
+                  )}
+
+                  {fastConfirmMealId === meal.id && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFastConfirmMealId(null)}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmFast}
+                        className="flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background"
+                      >
+                        Mark as fast?
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    disabled
-                    className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary opacity-50"
-                  >
-                    Had this
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary opacity-50"
-                  >
-                    Something else
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary opacity-50"
-                  >
-                    Fast
-                  </button>
-                </div>
-                <div className="mt-1 text-center text-[10px] text-text-secondary">(coming soon)</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -353,15 +718,26 @@ export default function FoodTab() {
         <Card>
           <div className="mb-3 text-base font-bold text-white">💊 Supplements</div>
           <div className="space-y-2">
-            {supplements.map((supplement) => (
-              <div key={supplement.id} className="flex items-center gap-3 rounded-brand bg-background p-3">
-                <div className="h-5 w-5 rounded-[4px] border border-text-secondary opacity-50" />
-                <div className="flex-1">
-                  <div className="text-sm text-text-primary">{supplement.name}</div>
-                  <div className="text-xs text-text-secondary">{supplement.time}</div>
-                </div>
-              </div>
-            ))}
+            {supplements.map((supplement) => {
+              const confirmed = getSupplementStatus(supplement.id);
+
+              return (
+                <button
+                  key={supplement.id}
+                  type="button"
+                  onClick={() => handleToggleSupplement(supplement.id)}
+                  className="flex w-full items-center gap-3 rounded-brand bg-background p-3"
+                >
+                  <div className={`h-5 w-5 flex items-center justify-center rounded-[4px] ${confirmed ? 'bg-primary' : 'border border-text-secondary'}`}>
+                    {confirmed && <span className="text-xs text-background">✓</span>}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-sm text-text-primary">{supplement.name}</div>
+                    <div className="text-xs text-text-secondary">{supplement.time}</div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </Card>
       )}
@@ -375,6 +751,278 @@ export default function FoodTab() {
         >
           Edit Plan
         </button>
+      )}
+
+      {/* Had This Time Picker Modal */}
+      {hadThisMealId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setHadThisMealId(null)}
+        >
+          <div
+            className="flex w-full max-w-md flex-col rounded-t-2xl bg-[#141414] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 text-lg font-bold text-text-primary">First meal time?</div>
+            <input
+              type="time"
+              value={hadThisTime}
+              onChange={(e) => setHadThisTime(e.target.value)}
+              className="mb-4 w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setHadThisMealId(null)}
+                className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmHadThis}
+                className="flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Something Else Modal */}
+      {somethingElseMealId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setSomethingElseMealId(null)}
+        >
+          <div
+            className="flex h-dvh max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-[#2a2a2a] p-6 pb-4">
+              <div className="text-lg font-bold text-text-primary">What did you have?</div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-6">
+              {deviationItems.map((item, index) => (
+                <input
+                  key={index}
+                  ref={index === 0 ? firstInputRef : null}
+                  type="text"
+                  value={item}
+                  onChange={(e) => handleDeviationItemChange(index, e.target.value)}
+                  placeholder={index === 0 ? "What did you have?" : "Add another item"}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  autoFocus={index === 0}
+                />
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddDeviationItem}
+                className="w-full rounded-brand border border-primary px-3 py-2 text-xs text-primary"
+              >
+                + Add another item
+              </button>
+
+              {!estimatedMacros && !estimationFailed && (
+                <button
+                  type="button"
+                  onClick={handleEstimateMacros}
+                  disabled={estimating || deviationItems.filter((i) => i.trim()).length === 0}
+                  className={
+                    estimating || deviationItems.filter((i) => i.trim()).length === 0
+                      ? 'w-full rounded-brand bg-gray-700 px-4 py-3 text-sm font-semibold text-gray-500 opacity-50'
+                      : 'w-full rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background'
+                  }
+                >
+                  {estimating ? 'Estimating...' : 'Estimate macros'}
+                </button>
+              )}
+
+              {estimationFailed && (
+                <div className="text-center text-sm text-red-500">
+                  Estimation failed — enter manually
+                </div>
+              )}
+
+              {(estimatedMacros || estimationFailed) && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      value={manualCalories}
+                      onChange={(e) => setManualCalories(e.target.value)}
+                      placeholder="Calories"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualProtein}
+                      onChange={(e) => setManualProtein(e.target.value)}
+                      placeholder="Protein"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualCarbs}
+                      onChange={(e) => setManualCarbs(e.target.value)}
+                      placeholder="Carbs"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualFat}
+                      onChange={(e) => setManualFat(e.target.value)}
+                      placeholder="Fat"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                    <input
+                      type="number"
+                      value={manualFibre}
+                      onChange={(e) => setManualFibre(e.target.value)}
+                      placeholder="Fibre"
+                      className="rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                    />
+                  </div>
+
+                  {foodLog.meals.filter((m) => m.loggedTime).length === 0 && (
+                    <>
+                      <div className="text-sm text-text-secondary">First meal time?</div>
+                      <input
+                        type="time"
+                        value={deviationTime}
+                        onChange={(e) => setDeviationTime(e.target.value)}
+                        className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                      />
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-[#2a2a2a] p-6 pt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSomethingElseMealId(null)}
+                  className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDeviation}
+                  disabled={!manualCalories || !manualProtein || !manualCarbs || !manualFat || !manualFibre}
+                  className={
+                    manualCalories && manualProtein && manualCarbs && manualFat && manualFibre
+                      ? 'flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background'
+                      : 'flex-1 rounded-brand bg-gray-700 px-4 py-3 text-sm font-semibold text-gray-500 opacity-50'
+                  }
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Log Modal */}
+      {editLogMealId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setEditLogMealId(null)}
+        >
+          <div
+            className="flex h-dvh max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-[#2a2a2a] p-6 pb-4">
+              <div className="text-lg font-bold text-text-primary">Edit Log</div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto p-6">
+              <div>
+                <div className="mb-1 text-xs text-text-secondary">TIME</div>
+                <input
+                  type="time"
+                  value={editLogTime}
+                  onChange={(e) => setEditLogTime(e.target.value)}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="mb-1 text-xs text-text-secondary">CALORIES</div>
+                  <input
+                    type="number"
+                    value={editLogCalories}
+                    onChange={(e) => setEditLogCalories(e.target.value)}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-text-secondary">PROTEIN</div>
+                  <input
+                    type="number"
+                    value={editLogProtein}
+                    onChange={(e) => setEditLogProtein(e.target.value)}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-text-secondary">CARBS</div>
+                  <input
+                    type="number"
+                    value={editLogCarbs}
+                    onChange={(e) => setEditLogCarbs(e.target.value)}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-text-secondary">FAT</div>
+                  <input
+                    type="number"
+                    value={editLogFat}
+                    onChange={(e) => setEditLogFat(e.target.value)}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs text-text-secondary">FIBRE</div>
+                  <input
+                    type="number"
+                    value={editLogFibre}
+                    onChange={(e) => setEditLogFibre(e.target.value)}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-[#2a2a2a] p-6 pt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditLogMealId(null)}
+                  className="flex-1 rounded-brand bg-background px-4 py-3 text-sm font-semibold text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditLog}
+                  className="flex-1 rounded-brand bg-primary px-4 py-3 text-sm font-semibold text-background"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Plan Bottom Sheet */}
@@ -392,7 +1040,6 @@ export default function FoodTab() {
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-6">
-              {/* Existing Items */}
               {foodPlan.map((item) => (
                 <div key={item.id} className="rounded-brand border border-[#2a2a2a] bg-background p-3">
                   <div className="flex items-center justify-between">
@@ -423,7 +1070,6 @@ export default function FoodTab() {
                     </div>
                   </div>
 
-                  {/* Inline Edit Form */}
                   {editingItem?.id === item.id && (
                     <div className="mt-3 space-y-2 border-t border-[#2a2a2a] pt-3">
                       <input
@@ -505,7 +1151,6 @@ export default function FoodTab() {
                 </div>
               ))}
 
-              {/* Add Meal Form */}
               {isAddingMeal && (
                 <div className="rounded-brand border-2 border-primary bg-background p-3">
                   <div className="mb-2 text-sm font-semibold text-primary">Add Meal</div>
@@ -588,7 +1233,6 @@ export default function FoodTab() {
                 </div>
               )}
 
-              {/* Add Supplement Form */}
               {isAddingSupplement && (
                 <div className="rounded-brand border-2 border-primary bg-background p-3">
                   <div className="mb-2 text-sm font-semibold text-primary">Add Supplement</div>
@@ -634,7 +1278,6 @@ export default function FoodTab() {
                 </div>
               )}
 
-              {/* Add Buttons */}
               {!isAddingMeal && !isAddingSupplement && !editingItem && (
                 <div className="flex gap-2">
                   <button

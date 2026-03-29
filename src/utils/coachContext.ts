@@ -549,80 +549,138 @@ export function getCoachContext(): {
     })(),
 
     food: (() => {
+      const last7Days: Array<{
+        date: string;
+        onPlanCount: number;
+        deviationCount: number;
+        fastCount: number;
+        unloggedCount: number;
+        fastingHours: number | null;
+        dailyTotals: { calories: number; protein: number; carbs: number; fat: number; fibre: number };
+      }> = [];
+      
       const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const todayKey = `${yyyy}-${mm}-${dd}`;
-      const foodLogKey = `${STORAGE_KEYS.FOOD_LOG}_${todayKey}`;
       
-      const raw = localStorage.getItem(foodLogKey);
-      if (!raw) {
-        return {
-          dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
-          vsTargets: { caloriesPct: 0, proteinPct: 0 },
-          fastingHours: null,
-          onPlanCount: 0,
-          deviationCount: 0,
-          fastCount: 0,
-          unloggedCount: 0,
-          last7Days: [],
-        };
-      }
-      
-      try {
-        const entries = JSON.parse(raw) as MacroLogEntry[];
-        const confirmed = entries.filter((e) => e.confirmed);
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const dayKey = `${yyyy}-${mm}-${dd}`;
         
-        const dailyTotals = confirmed.reduce(
-          (acc, e) => ({
-            calories: acc.calories + e.calories,
-            protein: acc.protein + e.protein,
-            carbs: acc.carbs + e.carbs,
-            fat: acc.fat + e.fat,
-            fibre: 0,
-          }),
-          { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
-        );
+        const foodLogKey = `${STORAGE_KEYS.FOOD_LOG}_${dayKey}`;
+        const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
         
-        const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
-        let targets = { calories: 1435, protein: 116.5 };
-        if (targetsRaw) {
+        let raw = localStorage.getItem(foodLogKey);
+        
+        if (raw) {
           try {
-            const parsed = JSON.parse(targetsRaw);
-            targets = { calories: parsed.calories || 1435, protein: parsed.protein || 116.5 };
+            const log = JSON.parse(raw);
+            const onPlanCount = log.meals?.filter((m: any) => m.status === 'plan').length || 0;
+            const deviationCount = log.meals?.filter((m: any) => m.status === 'deviation').length || 0;
+            const fastCount = log.meals?.filter((m: any) => m.status === 'fast').length || 0;
+            const unloggedCount = log.meals?.filter((m: any) => m.status === 'unlogged').length || 0;
+            
+            last7Days.push({
+              date: dayKey,
+              onPlanCount,
+              deviationCount,
+              fastCount,
+              unloggedCount,
+              fastingHours: log.fastingHours || null,
+              dailyTotals: log.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+            });
           } catch {
-            // Use defaults
+            last7Days.push({
+              date: dayKey,
+              onPlanCount: 0,
+              deviationCount: 0,
+              fastCount: 0,
+              unloggedCount: 0,
+              fastingHours: null,
+              dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+            });
+          }
+        } else {
+          raw = localStorage.getItem(macroKey);
+          if (raw) {
+            try {
+              const entries = JSON.parse(raw) as MacroLogEntry[];
+              const confirmed = entries.filter((e) => e.confirmed);
+              const dailyTotals = confirmed.reduce(
+                (acc, e) => ({
+                  calories: acc.calories + e.calories,
+                  protein: acc.protein + e.protein,
+                  carbs: acc.carbs + e.carbs,
+                  fat: acc.fat + e.fat,
+                  fibre: 0,
+                }),
+                { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
+              );
+              
+              last7Days.push({
+                date: dayKey,
+                onPlanCount: confirmed.length,
+                deviationCount: 0,
+                fastCount: 0,
+                unloggedCount: 0,
+                fastingHours: null,
+                dailyTotals,
+              });
+            } catch {
+              last7Days.push({
+                date: dayKey,
+                onPlanCount: 0,
+                deviationCount: 0,
+                fastCount: 0,
+                unloggedCount: 0,
+                fastingHours: null,
+                dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+              });
+            }
+          } else {
+            last7Days.push({
+              date: dayKey,
+              onPlanCount: 0,
+              deviationCount: 0,
+              fastCount: 0,
+              unloggedCount: 0,
+              fastingHours: null,
+              dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+            });
           }
         }
-        
-        const vsTargets = {
-          caloriesPct: targets.calories > 0 ? Math.round((dailyTotals.calories / targets.calories) * 100) : 0,
-          proteinPct: targets.protein > 0 ? Math.round((dailyTotals.protein / targets.protein) * 100) : 0,
-        };
-        
-        return {
-          dailyTotals,
-          vsTargets,
-          fastingHours: null,
-          onPlanCount: 0,
-          deviationCount: 0,
-          fastCount: 0,
-          unloggedCount: 0,
-          last7Days: [],
-        };
-      } catch {
-        return {
-          dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
-          vsTargets: { caloriesPct: 0, proteinPct: 0 },
-          fastingHours: null,
-          onPlanCount: 0,
-          deviationCount: 0,
-          fastCount: 0,
-          unloggedCount: 0,
-          last7Days: [],
-        };
       }
+      
+      const todayData = last7Days[0];
+      
+      const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
+      let targets = { calories: 1435, protein: 116.5 };
+      if (targetsRaw) {
+        try {
+          const parsed = JSON.parse(targetsRaw);
+          targets = { calories: parsed.calories || 1435, protein: parsed.protein || 116.5 };
+        } catch {
+          // Use defaults
+        }
+      }
+      
+      const vsTargets = {
+        caloriesPct: targets.calories > 0 ? Math.round((todayData.dailyTotals.calories / targets.calories) * 100) : 0,
+        proteinPct: targets.protein > 0 ? Math.round((todayData.dailyTotals.protein / targets.protein) * 100) : 0,
+      };
+      
+      return {
+        dailyTotals: todayData.dailyTotals,
+        vsTargets,
+        fastingHours: todayData.fastingHours,
+        onPlanCount: todayData.onPlanCount,
+        deviationCount: todayData.deviationCount,
+        fastCount: todayData.fastCount,
+        unloggedCount: todayData.unloggedCount,
+        last7Days,
+      };
     })(),
 
     specialists: (() => {
