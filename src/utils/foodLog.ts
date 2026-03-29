@@ -145,11 +145,11 @@ export function getCurrentTime(): string {
 }
 
 export async function estimateMacros(items: string[]): Promise<FoodMacros> {
-  const response = await fetch('https://ycqkfxhvhzqcvjqzwgkl.supabase.co/functions/v1/chat/macro-estimate', {
+  const response = await fetch('https://cmsmhswfipbwavgcveky.supabase.co/functions/v1/chat/macro-estimate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljcWtmeGh2aHpxY3ZqcXp3Z2tsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU1MzI0NTcsImV4cCI6MjA1MTEwODQ1N30.VYm1qJYxhE-0Iq_8vfKvmJXlJcPzlUqNqLMbqHXjkFU',
+      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtc21oc3dmaXBid2F2Z2N2ZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI0NTU0MzMsImV4cCI6MjA1ODAzMTQzM30.sBxLCGbxdLQVoRJTLKWqOUJfPWKWPVDHLlQhIpJXYBw',
     },
     body: JSON.stringify({ items }),
   });
