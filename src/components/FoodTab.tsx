@@ -63,6 +63,7 @@ export default function FoodTab() {
   const [estimating, setEstimating] = useState(false);
   const [estimatedMacros, setEstimatedMacros] = useState<FoodMacros | null>(null);
   const [estimationFailed, setEstimationFailed] = useState(false);
+  const [estimationError, setEstimationError] = useState<string>('');
   const [manualCalories, setManualCalories] = useState('');
   const [manualProtein, setManualProtein] = useState('');
   const [manualCarbs, setManualCarbs] = useState('');
@@ -335,6 +336,7 @@ export default function FoodTab() {
     setDeviationItems(['']);
     setEstimatedMacros(null);
     setEstimationFailed(false);
+    setEstimationError('');
     setManualCalories('');
     setManualProtein('');
     setManualCarbs('');
@@ -359,6 +361,7 @@ export default function FoodTab() {
 
     setEstimating(true);
     setEstimationFailed(false);
+    setEstimationError('');
 
     try {
       const macros = await estimateMacros(filledItems);
@@ -368,9 +371,10 @@ export default function FoodTab() {
       setManualCarbs(macros.carbs.toString());
       setManualFat(macros.fat.toString());
       setManualFibre(macros.fibre.toString());
-    } catch {
+    } catch (error: any) {
       setEstimationFailed(true);
       setEstimatedMacros(null);
+      setEstimationError(JSON.stringify(error, null, 2));
     } finally {
       setEstimating(false);
     }
@@ -842,9 +846,16 @@ export default function FoodTab() {
               )}
 
               {estimationFailed && (
-                <div className="text-center text-sm text-red-500">
-                  Estimation failed — enter manually
-                </div>
+                <>
+                  <div className="text-center text-sm text-red-500">
+                    Estimation failed — enter manually
+                  </div>
+                  {estimationError && (
+                    <div className="rounded-brand bg-red-900/20 border border-red-500/30 p-3 text-xs text-red-400 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                      {estimationError}
+                    </div>
+                  )}
+                </>
               )}
 
               {(estimatedMacros || estimationFailed) && (
