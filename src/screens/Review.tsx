@@ -184,13 +184,13 @@ export default function Review() {
     return total > 0 ? Math.round((progress / total) * 100) : 0;
   }, [latestStats, stageData, gymPerformanceScore]);
 
-  // US Navy formula (male): BF% = 86.010×log10(waist_cm - neck_cm) − 70.041×log10(height_cm) + 36.76
+  // US Navy formula (male): BF% = 495 / (1.0324 - 0.19077×log10(waist_cm - neck_cm) + 0.15456×log10(height_cm)) - 450
   // waist is stored in cm, neck is stored in mm → convert neck to cm
   const calcNavyBodyFat = (waistCm: number, neckMm: number, heightCm = 173): number => {
     const neckCm = neckMm / 10;
     const diff = waistCm - neckCm;
     if (diff <= 0) return 0;
-    const bf = 86.010 * Math.log10(diff) - 70.041 * Math.log10(heightCm) + 36.76;
+    const bf = 495 / (1.0324 - 0.19077 * Math.log10(diff) + 0.15456 * Math.log10(heightCm)) - 450;
     return Math.round(bf * 10) / 10;
   };
 
