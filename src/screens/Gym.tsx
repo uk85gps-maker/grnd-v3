@@ -6,6 +6,7 @@ import {
   GymSession,
   ExerciseLog,
   InjuryFlag,
+  InjuryCheckIn,
   getGymProgram,
   saveGymProgram,
   getGymSessions,
@@ -40,6 +41,13 @@ export default function Gym() {
   });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [viewingSession, setViewingSession] = useState<GymSession | null>(null);
+  
+  // Injury check-in state
+  const [injuryCheckIns, setInjuryCheckIns] = useState<Record<string, InjuryCheckIn>>({
+    'Right Shoulder': { name: 'Right Shoulder', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+    'Right Elbow': { name: 'Right Elbow', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+    'Knees': { name: 'Knees', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+  });
 
   useEffect(() => {
     const loadedProgram = getGymProgram();
@@ -118,11 +126,17 @@ export default function Gym() {
       };
     });
 
+    // Collect injury check-in data (only save injuries where user interacted)
+    const injuries = Object.values(injuryCheckIns).filter(
+      (injury) => injury.painLevel !== null || injury.affectedBySession || injury.notes.trim() !== ''
+    );
+
     const session: GymSession = {
       date: new Date().toISOString(),
       dayType: selectedTab,
       energyRating,
       exercises: exerciseLogs,
+      injuries: injuries.length > 0 ? injuries : undefined,
     };
 
     saveGymSession(session);
@@ -141,6 +155,13 @@ export default function Gym() {
     setWorkingSets(initial);
     setEnergyRating(7);
     setExpandedExercise(null);
+    
+    // Reset injury check-ins
+    setInjuryCheckIns({
+      'Right Shoulder': { name: 'Right Shoulder', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+      'Right Elbow': { name: 'Right Elbow', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+      'Knees': { name: 'Knees', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
+    });
   };
 
   const handleLogRestDay = () => {
@@ -357,19 +378,7 @@ export default function Gym() {
                     onClick={() => setExpandedExercise(isExpanded ? null : exercise.id)}
                   >
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-semibold text-text-primary">{exercise.name}</div>
-                        {exercise.injuryFlags.length > 0 && (
-                          <div className="flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5">
-                            <svg className="h-3 w-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-[10px] font-semibold text-amber-500">
-                              {exercise.injuryFlags.map(getInjuryFlagLabel).join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <div className="text-sm font-semibold text-text-primary">{exercise.name}</div>
                       <div className="mt-1 text-xs text-text-secondary">
                         {completedSets}/{exercise.setsTarget} sets
                       </div>
@@ -492,6 +501,151 @@ export default function Gym() {
                 }}
               />
               <div className="w-8 text-center text-sm font-bold text-primary">{energyRating}</div>
+            </div>
+          </div>
+
+          {/* Injury Check-In Section */}
+          <div className="rounded-brand border-2 border-text-secondary/30 bg-card p-4">
+            <div className="mb-4 text-sm font-semibold text-text-primary">Injury Check-In</div>
+            
+            <div className="space-y-4">
+              {Object.entries(injuryCheckIns).map(([injuryName, injury]) => (
+                <div key={injuryName} className="space-y-3 rounded-brand bg-background p-3">
+                  <div className="text-sm font-semibold text-text-primary">{injuryName}</div>
+                  
+                  {/* Pain Level Selector */}
+                  <div>
+                    <div className="mb-2 text-xs text-text-secondary">Pain Level (1-10)</div>
+                    <div className="flex gap-1">
+                      {Array.from({ length: 10 }).map((_, i) => {
+                        const level = i + 1;
+                        const isSelected = injury.painLevel === level;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => {
+                              setInjuryCheckIns((prev) => ({
+                                ...prev,
+                                [injuryName]: { ...prev[injuryName], painLevel: isSelected ? null : level },
+                              }));
+                            }}
+                            className="min-h-[32px] flex-1"
+                          >
+                            <div
+                              className={
+                                isSelected
+                                  ? 'flex h-7 w-full items-center justify-center rounded-brand bg-primary text-[10px] font-bold text-background'
+                                  : 'flex h-7 w-full items-center justify-center rounded-brand border border-text-secondary text-[10px] text-text-secondary'
+                              }
+                            >
+                              {level}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Affected by Session Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-text-secondary">Affected by today's session?</div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInjuryCheckIns((prev) => ({
+                          ...prev,
+                          [injuryName]: { 
+                            ...prev[injuryName], 
+                            affectedBySession: !prev[injuryName].affectedBySession,
+                            exercises: !prev[injuryName].affectedBySession ? prev[injuryName].exercises : [],
+                          },
+                        }));
+                      }}
+                      className={
+                        injury.affectedBySession
+                          ? 'rounded-full bg-primary px-3 py-1 text-xs font-semibold text-background'
+                          : 'rounded-full border border-text-secondary px-3 py-1 text-xs text-text-secondary'
+                      }
+                    >
+                      {injury.affectedBySession ? 'Yes' : 'No'}
+                    </button>
+                  </div>
+
+                  {/* Exercise Multi-Select (only if affected) */}
+                  {injury.affectedBySession && (
+                    <div>
+                      <div className="mb-2 text-xs text-text-secondary">Which exercises?</div>
+                      <div className="space-y-1">
+                        {currentExercises.map((ex) => {
+                          const isSelected = injury.exercises.includes(ex.name);
+                          return (
+                            <button
+                              key={ex.id}
+                              type="button"
+                              onClick={() => {
+                                setInjuryCheckIns((prev) => ({
+                                  ...prev,
+                                  [injuryName]: {
+                                    ...prev[injuryName],
+                                    exercises: isSelected
+                                      ? prev[injuryName].exercises.filter((e) => e !== ex.name)
+                                      : [...prev[injuryName].exercises, ex.name],
+                                  },
+                                }));
+                              }}
+                              className={
+                                isSelected
+                                  ? 'w-full rounded-brand border-2 border-primary bg-primary/10 px-3 py-2 text-left text-xs text-primary'
+                                  : 'w-full rounded-brand border border-text-secondary px-3 py-2 text-left text-xs text-text-secondary'
+                              }
+                            >
+                              {ex.name}
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Custom text entry for other exercises */}
+                        <input
+                          type="text"
+                          placeholder="Other exercise (type to add)"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                              const customExercise = e.currentTarget.value.trim();
+                              setInjuryCheckIns((prev) => ({
+                                ...prev,
+                                [injuryName]: {
+                                  ...prev[injuryName],
+                                  exercises: [...prev[injuryName].exercises, customExercise],
+                                },
+                              }));
+                              e.currentTarget.value = '';
+                            }
+                          }}
+                          className="w-full rounded-brand border border-text-secondary bg-card px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-secondary"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes Field */}
+                  <div>
+                    <div className="mb-1 text-xs text-text-secondary">Notes (optional)</div>
+                    <textarea
+                      value={injury.notes}
+                      onChange={(e) => {
+                        setInjuryCheckIns((prev) => ({
+                          ...prev,
+                          [injuryName]: { ...prev[injuryName], notes: e.target.value },
+                        }));
+                      }}
+                      placeholder="Any additional details..."
+                      rows={2}
+                      className="w-full rounded-brand bg-card px-3 py-2 text-xs text-text-primary outline-none placeholder:text-text-secondary"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

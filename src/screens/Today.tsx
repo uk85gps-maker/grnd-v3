@@ -5,6 +5,7 @@ import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checkl
 import { DEFAULT_CHECKLIST } from '@/utils/defaultChecklist';
 import { STORAGE_KEYS, MoodLogEntry, MacroLogEntry } from '@/utils/coachContext';
 import { getMealPlanDefaults, getMacroTargets, saveMealPlanDefaults, saveMacroTargets, MealPlanItem, MacroTargets } from '@/utils/mealPlan';
+import FoodTab from '@/components/FoodTab';
 
 type SleepLog = {
   bedTime: string;
@@ -93,6 +94,9 @@ export default function Today() {
   const completionKey = `grnd_checklist_${dayKey}`;
   const sleepKey = `${STORAGE_KEYS.SLEEP_LOG}_${dayKey}`;
   const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
+
+  // Tab switcher state (Life | Food)
+  const [activeTab, setActiveTab] = useState<'life' | 'food'>('life');
 
   // Load checklist structure from localStorage or use default
   const [sections, setSections] = useState<ChecklistSection[]>(() => {
@@ -946,6 +950,35 @@ export default function Today() {
         <div className="text-[12px] text-text-secondary">{formatHeaderDate()}</div>
       </div>
 
+      {/* Tab Switcher: Life | Food */}
+      <div className="flex w-full border-b border-[#2a2a2a]">
+        <button
+          type="button"
+          onClick={() => setActiveTab('life')}
+          className={
+            activeTab === 'life'
+              ? 'flex-1 border-b-2 border-primary pb-3 text-sm font-semibold text-primary'
+              : 'flex-1 pb-3 text-sm font-semibold text-text-secondary'
+          }
+        >
+          Life
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('food')}
+          className={
+            activeTab === 'food'
+              ? 'flex-1 border-b-2 border-primary pb-3 text-sm font-semibold text-primary'
+              : 'flex-1 pb-3 text-sm font-semibold text-text-secondary'
+          }
+        >
+          Food
+        </button>
+      </div>
+
+      {/* Render Life tab content */}
+      {activeTab === 'life' && (
+        <>
       {!focusDismissed && focusState.completed.length < 2 && (
         <Card>
         <button
@@ -2441,6 +2474,11 @@ export default function Today() {
           </div>
         </div>
       ) : null}
+        </>
+      )}
+
+      {/* Render Food tab content */}
+      {activeTab === 'food' && <FoodTab />}
     </div>
   );
 }

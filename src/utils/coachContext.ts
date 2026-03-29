@@ -24,6 +24,11 @@ export const STORAGE_KEYS = {
   MILESTONES: 'grnd_milestones',
   EDIT_HISTORY: 'grnd_edit_history',
   MOOD_CAUSES: 'grnd_mood_causes',
+  FOOD_PLAN: 'grnd_food_plan',
+  FOOD_LOG: 'grnd_food_log',
+  FOOD_PLAN_EDIT_HISTORY: 'grnd_food_plan_edit_history',
+  MIGRATION_FOOD_SPLIT_DONE: 'grnd_migration_food_split_done',
+  CHECKLIST_STRUCTURE_PRE_MIGRATION_BACKUP: 'grnd_checklist_structure_pre_migration_backup',
 };
 
 // Data Stream Interfaces
@@ -306,6 +311,7 @@ export function getCoachContext(): {
   gym: any;
   body: any;
   macros: any;
+  food: any;
   specialists: any;
   field: any;
   learn: any;
@@ -477,6 +483,7 @@ export function getCoachContext(): {
     })(),
 
     // Populated by: Today tab - macro tracking (Phase 3b Step 4)
+    // Updated: First checks grnd_food_log, falls back to grnd_macro_log
     macros: (() => {
       const macroLogs: Array<{ date: string; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
       const today = new Date();
@@ -488,9 +495,16 @@ export function getCoachContext(): {
         const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
         const dd = String(checkDate.getDate()).padStart(2, '0');
         const dayKey = `${yyyy}-${mm}-${dd}`;
+        
+        // Try food_log first, fall back to macro_log
+        const foodLogKey = `${STORAGE_KEYS.FOOD_LOG}_${dayKey}`;
         const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
         
-        const raw = localStorage.getItem(macroKey);
+        let raw = localStorage.getItem(foodLogKey);
+        if (!raw) {
+          raw = localStorage.getItem(macroKey);
+        }
+        
         if (raw) {
           try {
             const entries = JSON.parse(raw) as MacroLogEntry[];
@@ -532,6 +546,83 @@ export function getCoachContext(): {
       }
       
       return macroLogs;
+    })(),
+
+    food: (() => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayKey = `${yyyy}-${mm}-${dd}`;
+      const foodLogKey = `${STORAGE_KEYS.FOOD_LOG}_${todayKey}`;
+      
+      const raw = localStorage.getItem(foodLogKey);
+      if (!raw) {
+        return {
+          dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+          vsTargets: { caloriesPct: 0, proteinPct: 0 },
+          fastingHours: null,
+          onPlanCount: 0,
+          deviationCount: 0,
+          fastCount: 0,
+          unloggedCount: 0,
+          last7Days: [],
+        };
+      }
+      
+      try {
+        const entries = JSON.parse(raw) as MacroLogEntry[];
+        const confirmed = entries.filter((e) => e.confirmed);
+        
+        const dailyTotals = confirmed.reduce(
+          (acc, e) => ({
+            calories: acc.calories + e.calories,
+            protein: acc.protein + e.protein,
+            carbs: acc.carbs + e.carbs,
+            fat: acc.fat + e.fat,
+            fibre: 0,
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
+        );
+        
+        const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
+        let targets = { calories: 1435, protein: 116.5 };
+        if (targetsRaw) {
+          try {
+            const parsed = JSON.parse(targetsRaw);
+            targets = { calories: parsed.calories || 1435, protein: parsed.protein || 116.5 };
+          } catch {
+            // Use defaults
+          }
+        }
+        
+        const vsTargets = {
+          caloriesPct: targets.calories > 0 ? Math.round((dailyTotals.calories / targets.calories) * 100) : 0,
+          proteinPct: targets.protein > 0 ? Math.round((dailyTotals.protein / targets.protein) * 100) : 0,
+        };
+        
+        return {
+          dailyTotals,
+          vsTargets,
+          fastingHours: null,
+          onPlanCount: 0,
+          deviationCount: 0,
+          fastCount: 0,
+          unloggedCount: 0,
+          last7Days: [],
+        };
+      } catch {
+        return {
+          dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
+          vsTargets: { caloriesPct: 0, proteinPct: 0 },
+          fastingHours: null,
+          onPlanCount: 0,
+          deviationCount: 0,
+          fastCount: 0,
+          unloggedCount: 0,
+          last7Days: [],
+        };
+      }
     })(),
 
     specialists: (() => {

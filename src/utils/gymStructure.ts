@@ -28,11 +28,20 @@ export interface ExerciseLog {
   sets: SetLog[];
 }
 
+export interface InjuryCheckIn {
+  name: string;
+  painLevel: number | null;
+  affectedBySession: boolean;
+  exercises: string[];
+  notes: string;
+}
+
 export interface GymSession {
   date: string;
   dayType: DayType;
   energyRating: number;
   exercises: ExerciseLog[];
+  injuries?: InjuryCheckIn[];
 }
 
 const STORAGE_KEY = 'grnd_gym_structure';
