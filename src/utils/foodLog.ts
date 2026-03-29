@@ -145,48 +145,29 @@ export function getCurrentTime(): string {
 }
 
 export async function estimateMacros(items: string[]): Promise<FoodMacros> {
-  const url = 'https://cmsmhswfipbwavgcveky.supabase.co/functions/v1/chat/macro-estimate';
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-  };
-  const body = JSON.stringify({ items });
-
-  console.log('Macro estimation request:', {
-    url,
-    headers: {
-      'Content-Type': headers['Content-Type'],
-      'Authorization': headers.Authorization ? `Bearer ${headers.Authorization.substring(0, 20)}...` : 'MISSING',
-    },
-    body,
-  });
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+  const url = `${supabaseUrl}/functions/v1/chat/macro-estimate`;
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers,
-      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseKey}`,
+        'apikey': supabaseKey,
+      },
+      body: JSON.stringify({ items }),
     });
 
-    console.log('Macro estimation response status:', response.status);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Macro estimation error response:', errorText);
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: 'non_json_response', text: errorText };
-      }
-      throw errorData;
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    const data = await response.json();
-    console.log('Macro estimation success:', data);
-    return data as FoodMacros;
+    return await response.json() as FoodMacros;
   } catch (error) {
-    console.error('Macro estimation fetch error:', error);
-    throw error;
+    if (error instanceof Error) throw error;
+    throw new Error('Failed to estimate macros. Please try again.');
   }
 }

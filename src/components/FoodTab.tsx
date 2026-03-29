@@ -374,7 +374,7 @@ export default function FoodTab() {
     } catch (error: any) {
       setEstimationFailed(true);
       setEstimatedMacros(null);
-      setEstimationError(JSON.stringify(error, null, 2));
+      setEstimationError(error instanceof Error ? error.message : JSON.stringify(error, null, 2) || 'Unknown error');
     } finally {
       setEstimating(false);
     }
