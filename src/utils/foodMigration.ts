@@ -36,21 +36,11 @@ const SUPPLEMENT_KEYWORDS = [
   'd3',
   'k2',
   'electrolytes',
+  'curcumin',
 ];
 
-// Primary match keywords (in purpose field)
-const PRIMARY_KEYWORDS = [
-  'food',
-  'supplement',
-  'meal',
-  'nutrition',
-  'protein',
-  'vitamin',
-  'mineral',
-];
-
-// Secondary match keywords (exact word match in name, only if purpose is empty)
-const SECONDARY_KEYWORDS = [
+// Food/supplement item names to INCLUDE in migration (case insensitive)
+const FOOD_ITEM_NAMES = [
   'apple',
   'collagen',
   'iron',
@@ -59,34 +49,57 @@ const SECONDARY_KEYWORDS = [
   'eggs',
   'avocado',
   'tofu',
+  'potato',
   'electrolytes',
-  'magnesium',
-  'omega',
-  'parshad',
+  'walnuts',
   'egg whites',
+  'kada parshad',
+  'parshad',
+  'skim coffee',
+  'coffee',
+  'shake',
+  'd3',
+  'k2',
+  'omega',
+  'magnesium',
+  'curcumin',
+];
+
+// Life items to EXCLUDE from migration (must stay in Life tab)
+const LIFE_ITEM_NAMES = [
+  'cook for tomorrow',
+  'prepare',
+  'read',
+  'shower',
+  'skincare',
+  'simran',
+  'wake',
+  'stretch',
+  'sunlight',
+  'water',
+  'sleep',
+  'work',
+  'waheguru',
+  'gurbani',
+  'suksham',
 ];
 
 function isFoodOrSupplement(item: ChecklistItem): boolean {
-  const purposeLower = (item.purpose || '').toLowerCase();
   const nameLower = item.name.toLowerCase();
 
-  // PRIMARY match: purpose field contains any primary keyword
-  if (purposeLower) {
-    for (const keyword of PRIMARY_KEYWORDS) {
-      if (purposeLower.includes(keyword)) {
-        return true;
-      }
+  // First check EXCLUDE list - if matched, must stay in Life tab
+  for (const excludeName of LIFE_ITEM_NAMES) {
+    const regex = new RegExp(`\\b${excludeName}\\b`, 'i');
+    if (regex.test(nameLower)) {
+      return false;
     }
   }
 
-  // SECONDARY match: name matches exact words (only if purpose is empty)
-  if (!purposeLower || purposeLower.trim() === '') {
-    for (const keyword of SECONDARY_KEYWORDS) {
-      // Exact word match (case insensitive)
-      const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-      if (regex.test(nameLower)) {
-        return true;
-      }
+  // Then check INCLUDE list - if matched, move to Food tab
+  for (const foodName of FOOD_ITEM_NAMES) {
+    const regex = new RegExp(`\\b${foodName}\\b`, 'i');
+    if (regex.test(nameLower)) {
+      return true;
     }
   }
 
@@ -105,8 +118,34 @@ function determineType(itemName: string): 'meal' | 'supplement' {
   return 'meal';
 }
 
+// Reset migration - restores backup and clears migration data
+export function resetMigration(): void {
+  try {
+    // Restore checklist from backup if it exists
+    const backup = localStorage.getItem(BACKUP_KEY);
+    if (backup) {
+      localStorage.setItem(CHECKLIST_STRUCTURE_KEY, backup);
+    }
+
+    // Clear migration flag and food plan
+    localStorage.removeItem(MIGRATION_FLAG_KEY);
+    localStorage.removeItem(FOOD_PLAN_KEY);
+
+    console.log('Migration reset complete. Reload app to re-run migration.');
+  } catch (error) {
+    console.error('Migration reset failed:', error);
+  }
+}
+
 export function runMigrationIfNeeded(): void {
   try {
+    // One-time v2 reset: Force re-run with corrected keyword logic
+    const v2ResetDone = localStorage.getItem('grnd_migration_v2_reset_done');
+    if (!v2ResetDone) {
+      resetMigration();
+      localStorage.setItem('grnd_migration_v2_reset_done', 'true');
+    }
+
     // Check if migration already done
     const migrationDone = localStorage.getItem(MIGRATION_FLAG_KEY);
     if (migrationDone === 'true') {

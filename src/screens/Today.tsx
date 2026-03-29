@@ -142,6 +142,7 @@ export default function Today() {
   // Macro tracking state
   const [macroEntries, setMacroEntries] = useState<MacroLogEntry[]>([]);
   const [mealPlanDefaults, setMealPlanDefaults] = useState<MealPlanItem[]>([]);
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const [macroTargets, setMacroTargets] = useState<MacroTargets>({ calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 });
   const [editMealPlanModal, setEditMealPlanModal] = useState(false);
   const [usdaSearchModal, setUsdaSearchModal] = useState(false);
@@ -162,6 +163,7 @@ export default function Today() {
   const [focusDismissed, setFocusDismissed] = useState(false);
   const [proofDismissed, setProofDismissed] = useState(false);
   const [sleepPopupDismissed, setSleepPopupDismissed] = useState(false);
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const [deviationMealId, setDeviationMealId] = useState<string | null>(null);
   const [deviationText, setDeviationText] = useState('');
   const [foodHistory, setFoodHistory] = useState<string[]>([]);
@@ -458,6 +460,7 @@ export default function Today() {
     }
   };
 
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const handleDeviationSave = (_mealId: string) => {
     if (!deviationText.trim()) return;
 
@@ -799,6 +802,7 @@ export default function Today() {
     setEditTargetsMode(false);
   };
 
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const confirmedMacros = useMemo(() => {
     const confirmed = macroEntries.filter((e) => e.confirmed);
     return confirmed.reduce(
@@ -812,6 +816,7 @@ export default function Today() {
     );
   }, [macroEntries]);
 
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const getMacroColor = (actual: number, target: number) => {
     const diff = ((actual - target) / target) * 100;
     if (actual === 0) return 'text-text-secondary'; // No data
@@ -913,6 +918,7 @@ export default function Today() {
     : newItem.name && newItem.time && newItem.purpose && newItem.consequence;
 
   // CHANGE 10: Dynamically load meal list from checklist structure
+  // @ts-expect-error - Used in modals, not in Life tab after Macros section removal
   const dynamicMealList = useMemo(() => {
     const mealKeywords = ['meal', 'food', 'eat', 'breakfast', 'lunch', 'dinner', 'shake', 'protein', 'snack', 'apple', 'egg', 'tofu', 'parshad'];
     
@@ -1204,225 +1210,6 @@ export default function Today() {
         )}
       </Card>
       )}
-
-      {/* Macro Summary Card */}
-      <Card>
-        <button
-          type="button"
-          onClick={() => handleSectionToggle('macros')}
-          className="flex w-full items-center justify-between"
-        >
-          <div className="text-base font-bold text-white">🍽️ Macros</div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 text-text-secondary transition-transform ${openSection === 'macros' ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {openSection === 'macros' && (
-          <div className="mt-3">
-        
-        {/* Summary Row */}
-        <div className="mt-3 grid grid-cols-4 gap-2">
-          <div className="rounded-brand bg-background p-2">
-            <div className="text-[10px] tracking-widest text-text-secondary">CALORIES</div>
-            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.calories, macroTargets.calories)}`}>
-              {confirmedMacros.calories} / {macroTargets.calories}
-            </div>
-          </div>
-          <div className="rounded-brand bg-background p-2">
-            <div className="text-[10px] tracking-widest text-text-secondary">PROTEIN</div>
-            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.protein, macroTargets.protein)}`}>
-              {confirmedMacros.protein}g / {macroTargets.protein}g
-            </div>
-          </div>
-          <div className="rounded-brand bg-background p-2">
-            <div className="text-[10px] tracking-widest text-text-secondary">CARBS</div>
-            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.carbs, macroTargets.carbs)}`}>
-              {confirmedMacros.carbs}g / {macroTargets.carbs}g
-            </div>
-          </div>
-          <div className="rounded-brand bg-background p-2">
-            <div className="text-[10px] tracking-widest text-text-secondary">FAT</div>
-            <div className={`mt-1 text-sm font-semibold ${getMacroColor(confirmedMacros.fat, macroTargets.fat)}`}>
-              {confirmedMacros.fat}g / {macroTargets.fat}g
-            </div>
-          </div>
-        </div>
-
-        {/* Empty State */}
-        {macroEntries.filter((e) => e.confirmed).length === 0 && (
-          <div className="mt-3 text-center text-sm italic text-text-secondary">
-            Tap meals to confirm
-          </div>
-        )}
-
-        {/* Meal List */}
-        <div className="mt-3 max-h-[300px] space-y-2 overflow-y-auto">
-          {dynamicMealList.map((meal) => {
-            const entry = macroEntries.find((e) => e.id === meal.id);
-            const isConfirmed = entry?.confirmed || false;
-            const isDeviationOpen = deviationMealId === meal.id;
-            
-            // CHANGE 8: Filter food history based on deviation text input
-            const filteredHistory = deviationText.trim()
-              ? foodHistory.filter(item => item.toLowerCase().includes(deviationText.toLowerCase()))
-              : foodHistory;
-
-            return (
-              <div key={meal.id} className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => handleConfirmMeal(meal.id)}
-                  className={
-                    isConfirmed
-                      ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
-                      : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className={isConfirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
-                        {meal.name}
-                      </div>
-                      <div className="mt-1 text-[10px] text-text-secondary">
-                        {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g
-                      </div>
-                    </div>
-                    <div className={isConfirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
-                      {isConfirmed ? '✓' : '○'}
-                    </div>
-                  </div>
-                </button>
-
-                {/* CHANGE 7: Had something else button */}
-                {!isDeviationOpen && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeviationMealId(meal.id);
-                      setDeviationText('');
-                    }}
-                    className="w-full text-xs text-text-secondary hover:text-primary"
-                  >
-                    Had something else
-                  </button>
-                )}
-
-                {/* CHANGE 7 & 8: Deviation input with food history chips */}
-                {isDeviationOpen && (
-                  <div className="rounded-brand bg-background p-3 space-y-2">
-                    {/* CHANGE 8: Food history chips */}
-                    {filteredHistory.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {filteredHistory.slice(0, 5).map((item, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setDeviationText(item)}
-                            className="rounded-full border border-primary bg-primary/10 px-2 py-1 text-[10px] text-primary hover:bg-primary/20"
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <input
-                      type="text"
-                      value={deviationText}
-                      onChange={(e) => setDeviationText(e.target.value)}
-                      placeholder="What did you have instead?"
-                      className="w-full rounded-brand bg-card px-3 py-2 text-sm text-text-primary outline-none"
-                      autoFocus
-                    />
-
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDeviationMealId(null);
-                          setDeviationText('');
-                        }}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-xs text-text-secondary"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeviationSave(meal.id)}
-                        disabled={!deviationText.trim()}
-                        className={
-                          deviationText.trim()
-                            ? 'flex-1 rounded-brand bg-primary px-3 py-2 text-xs font-semibold text-background'
-                            : 'flex-1 rounded-brand bg-gray-700 px-3 py-2 text-xs font-semibold text-gray-500 opacity-50 cursor-not-allowed'
-                        }
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Custom meals from USDA/manual */}
-          {macroEntries
-            .filter((e) => e.source !== 'default')
-            .map((meal) => (
-              <button
-                key={meal.id}
-                type="button"
-                onClick={() => handleConfirmMeal(meal.id)}
-                className={
-                  meal.confirmed
-                    ? 'w-full rounded-brand bg-primary/10 border-2 border-primary p-2 text-left'
-                    : 'w-full rounded-brand bg-card border border-text-secondary p-2 text-left'
-                }
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className={meal.confirmed ? 'text-sm font-semibold text-primary' : 'text-sm text-text-secondary'}>
-                      {meal.name}
-                    </div>
-                    <div className="mt-1 text-[10px] text-text-secondary">
-                      {meal.time} • {meal.calories}cal • P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g • {meal.source}
-                    </div>
-                  </div>
-                  <div className={meal.confirmed ? 'text-primary text-lg' : 'text-text-secondary text-lg'}>
-                    {meal.confirmed ? '✓' : '○'}
-                  </div>
-                </div>
-              </button>
-            ))}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setEditMealPlanModal(true)}
-            className="flex-1 text-xs text-primary"
-          >
-            Edit meal plan
-          </button>
-          <button
-            type="button"
-            onClick={() => setUsdaSearchModal(true)}
-            className="flex-1 rounded-brand border border-primary px-3 py-2 text-xs font-semibold text-primary"
-          >
-            Log Custom Meal
-          </button>
-        </div>
-          </div>
-        )}
-      </Card>
 
       <Card>
         <div className="text-base font-bold text-white mb-3">📊 Stats</div>
