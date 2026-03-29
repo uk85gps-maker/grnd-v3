@@ -29,11 +29,21 @@ serve(async (req) => {
       
       const userMessage = items.join(', ')
 
+      const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+      
+      if (!apiKey) {
+        console.error('ANTHROPIC_API_KEY not set')
+        return new Response(JSON.stringify({ error: 'API key not configured', details: 'ANTHROPIC_API_KEY environment variable is missing' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
+          'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
@@ -46,8 +56,24 @@ serve(async (req) => {
 
       const data = await response.json()
 
-      if (!response.ok || !data.content || !data.content[0]) {
-        return new Response(JSON.stringify({ error: 'estimation_failed' }), {
+      if (!response.ok) {
+        console.error('Anthropic API error:', data)
+        return new Response(JSON.stringify({ 
+          error: 'anthropic_api_error', 
+          status: response.status,
+          details: data 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (!data.content || !data.content[0]) {
+        console.error('Unexpected response format:', data)
+        return new Response(JSON.stringify({ 
+          error: 'unexpected_response_format',
+          details: data 
+        }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -60,7 +86,12 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     } catch (error) {
-      return new Response(JSON.stringify({ error: 'estimation_failed' }), {
+      console.error('Macro estimation error:', error)
+      return new Response(JSON.stringify({ 
+        error: 'estimation_failed',
+        message: error.message,
+        stack: error.stack 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
