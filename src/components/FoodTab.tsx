@@ -307,7 +307,7 @@ export default function FoodTab() {
 
   // HAD THIS
   const handleHadThisClick = (mealId: string) => {
-    const isFirstMealOfDay = foodLog.meals.filter((m) => m.loggedTime).length === 0;
+    const isFirstMealOfDay = loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0;
     if (isFirstMealOfDay) {
       setHadThisMealId(mealId);
       setHadThisTime(getCurrentTime());
