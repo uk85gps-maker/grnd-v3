@@ -1,15 +1,17 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { getGrndDayKey } from '@/utils/dayKey';
+import { getGrndDayKey, previousDayKey } from '@/utils/dayKey';
 import { FoodPlanItem, runMigrationIfNeeded } from '@/utils/foodMigration';
 import { getMacroTargets, MacroTargets } from '@/utils/mealPlan';
 import {
   loadFoodLog,
   saveFoodLog,
   calculateDailyTotals,
-  calculateFastingHours,
   updateMealFirstLastFlags,
   getCurrentTime,
   estimateMacros,
+  getCrossDayFasting,
+  KADA_PARSHAD_MACROS,
+  isKadaParshad,
   MealLog,
   FoodMacros,
 } from '@/utils/foodLog';
@@ -24,7 +26,9 @@ function Card({ children }: { children: React.ReactNode }) {
 
 export default function FoodTab() {
   const dayKey = useMemo(() => getGrndDayKey(), []);
+  const yesterdayKey = useMemo(() => previousDayKey(dayKey), [dayKey]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [fastingDisplay, setFastingDisplay] = useState('--');
 
   const [foodPlan, setFoodPlan] = useState<FoodPlanItem[]>(() => {
     runMigrationIfNeeded();
@@ -70,7 +74,6 @@ export default function FoodTab() {
   const [manualFat, setManualFat] = useState('');
   const [manualFibre, setManualFibre] = useState('');
   const [deviationTime, setDeviationTime] = useState('');
-  const [fastConfirmMealId, setFastConfirmMealId] = useState<string | null>(null);
   const [editLogMealId, setEditLogMealId] = useState<string | null>(null);
   const [editLogTime, setEditLogTime] = useState('');
   const [editLogCalories, setEditLogCalories] = useState('');
@@ -88,6 +91,37 @@ export default function FoodTab() {
       }, 300);
     }
   }, [somethingElseMealId]);
+
+  // Auto-skip any still-unlogged meals from the previous day
+  useEffect(() => {
+    const prevLog = loadFoodLog(yesterdayKey);
+    if (prevLog.meals.some((m) => m.status === 'unlogged')) {
+      const updated = {
+        ...prevLog,
+        meals: prevLog.meals.map((m) =>
+          m.status === 'unlogged' ? { ...m, status: 'skipped' as const } : m
+        ),
+      };
+      saveFoodLog(updated, yesterdayKey);
+    }
+  }, [yesterdayKey]);
+
+  // Live fasting display — ticks every minute while unfasted
+  useEffect(() => {
+    const compute = () => {
+      const { hours, locked } = getCrossDayFasting(dayKey, yesterdayKey);
+      if (hours === null) {
+        setFastingDisplay('--');
+      } else if (locked) {
+        setFastingDisplay(`Fasted ${hours}h`);
+      } else {
+        setFastingDisplay(`Fasting... ${hours}h`);
+      }
+    };
+    compute();
+    const interval = setInterval(compute, 60_000);
+    return () => clearInterval(interval);
+  }, [dayKey, yesterdayKey, refreshKey]);
 
   const meals = useMemo(() => {
     return foodPlan
@@ -286,14 +320,17 @@ export default function FoodTab() {
     const meal = meals.find((m) => m.id === mealId);
     if (!meal) return;
 
+    const macros = isKadaParshad(meal.name) ? KADA_PARSHAD_MACROS : meal.plannedMacros;
+    const items = isKadaParshad(meal.name) ? ['2 tbsp Kada Parshad'] : [];
+
     const newMeal: MealLog = {
       id: mealId,
       name: meal.name,
       plannedTime: meal.time,
       loggedTime: time,
       status: 'plan',
-      items: [],
-      macros: meal.plannedMacros,
+      items,
+      macros,
       source: 'plan',
       isFirstMeal: false,
       isLastMeal: false,
@@ -309,13 +346,12 @@ export default function FoodTab() {
 
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    const fastingHours = calculateFastingHours(updatedMeals);
 
     const updatedLog = {
       ...foodLog,
       meals: updatedMeals,
       dailyTotals,
-      fastingHours,
+      fastingHours: null,
     };
 
     saveFoodLog(updatedLog, dayKey);
@@ -421,13 +457,12 @@ export default function FoodTab() {
 
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    const fastingHours = calculateFastingHours(updatedMeals);
 
     const updatedLog = {
       ...foodLog,
       meals: updatedMeals,
       dailyTotals,
-      fastingHours,
+      fastingHours: null,
     };
 
     saveFoodLog(updatedLog, dayKey);
@@ -435,23 +470,17 @@ export default function FoodTab() {
     refreshLog();
   };
 
-  // FAST
-  const handleFastClick = (mealId: string) => {
-    setFastConfirmMealId(mealId);
-  };
-
-  const handleConfirmFast = () => {
-    if (!fastConfirmMealId) return;
-
-    const meal = meals.find((m) => m.id === fastConfirmMealId);
+  // SKIP — one tap, no confirmation; tappable again to undo back to unlogged
+  const handleSkipMeal = (mealId: string) => {
+    const meal = meals.find((m) => m.id === mealId);
     if (!meal) return;
 
-    const newMeal: MealLog = {
-      id: fastConfirmMealId,
+    const skippedMeal: MealLog = {
+      id: mealId,
       name: meal.name,
       plannedTime: meal.time,
-      loggedTime: getCurrentTime(),
-      status: 'fast',
+      loggedTime: null,
+      status: 'skipped',
       items: [],
       macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
       source: 'plan',
@@ -460,42 +489,22 @@ export default function FoodTab() {
     };
 
     let updatedMeals = [...foodLog.meals];
-    const existingIndex = updatedMeals.findIndex((m) => m.id === fastConfirmMealId);
+    const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
     if (existingIndex >= 0) {
-      updatedMeals[existingIndex] = newMeal;
+      updatedMeals[existingIndex] = skippedMeal;
     } else {
-      updatedMeals.push(newMeal);
+      updatedMeals.push(skippedMeal);
     }
 
-    updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    const fastingHours = calculateFastingHours(updatedMeals);
-
-    const updatedLog = {
-      ...foodLog,
-      meals: updatedMeals,
-      dailyTotals,
-      fastingHours,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
-    setFastConfirmMealId(null);
+    saveFoodLog({ ...foodLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     refreshLog();
   };
 
-  const handleUndoFast = (mealId: string) => {
+  const handleUndoSkip = (mealId: string) => {
     const updatedMeals = foodLog.meals.filter((m) => m.id !== mealId);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    const fastingHours = calculateFastingHours(updatedMeals);
-
-    const updatedLog = {
-      ...foodLog,
-      meals: updatedMeals,
-      dailyTotals,
-      fastingHours,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
+    saveFoodLog({ ...foodLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     refreshLog();
   };
 
@@ -534,13 +543,12 @@ export default function FoodTab() {
 
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    const fastingHours = calculateFastingHours(updatedMeals);
 
     const updatedLog = {
       ...foodLog,
       meals: updatedMeals,
       dailyTotals,
-      fastingHours,
+      fastingHours: null,
     };
 
     saveFoodLog(updatedLog, dayKey);
@@ -598,7 +606,7 @@ export default function FoodTab() {
           <div>
             <div className="text-sm text-text-secondary">FASTING</div>
             <div className="mt-1 text-lg font-bold text-text-secondary">
-              {foodLog.fastingHours !== null ? `${foodLog.fastingHours} hrs` : '-- hrs'}
+              {fastingDisplay}
             </div>
           </div>
         </div>
@@ -627,8 +635,8 @@ export default function FoodTab() {
           <div className="space-y-3">
             {meals.map((meal) => {
               const mealLog = getMealStatus(meal.id);
-              const isLogged = mealLog && mealLog.status !== 'unlogged';
-              const isFasted = mealLog?.status === 'fast';
+              const isLogged = mealLog?.status === 'plan' || mealLog?.status === 'deviation';
+              const isSkipped = mealLog?.status === 'skipped';
 
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
@@ -636,17 +644,30 @@ export default function FoodTab() {
                     <div className="flex-1">
                       <div className="text-base font-semibold text-text-primary">{meal.name}</div>
                       <div className="mt-1 text-sm text-text-secondary">
-                        {meal.time} • {meal.plannedMacros.calories}cal • P:{meal.plannedMacros.protein}g C:{meal.plannedMacros.carbs}g F:{meal.plannedMacros.fat}g
+                        {meal.time} • {isKadaParshad(meal.name) ? '190cal • P:1.5g C:18g F:12g' : `${meal.plannedMacros.calories}cal • P:${meal.plannedMacros.protein}g C:${meal.plannedMacros.carbs}g F:${meal.plannedMacros.fat}g`}
                       </div>
-                      {mealLog && mealLog.status === 'deviation' && (
+                      {mealLog?.status === 'deviation' && (
                         <div className="mt-1 text-sm text-primary">
                           Had: {mealLog.items.join(', ')}
                         </div>
                       )}
+                      {mealLog?.status === 'plan' && isKadaParshad(meal.name) && (
+                        <div className="mt-1 text-sm text-text-secondary">2 tbsp</div>
+                      )}
                     </div>
                   </div>
 
-                  {!isLogged && (
+                  {isSkipped && (
+                    <button
+                      type="button"
+                      onClick={() => handleUndoSkip(meal.id)}
+                      className="mt-3 w-full rounded-brand bg-zinc-800 px-3 py-2 text-sm text-zinc-500"
+                    >
+                      Skipped — tap to undo
+                    </button>
+                  )}
+
+                  {!isLogged && !isSkipped && (
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"
@@ -664,15 +685,15 @@ export default function FoodTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleFastClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
+                        onClick={() => handleSkipMeal(meal.id)}
+                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-zinc-500"
                       >
-                        Fast
+                        Skip
                       </button>
                     </div>
                   )}
 
-                  {isLogged && !isFasted && (
+                  {isLogged && (
                     <button
                       type="button"
                       onClick={() => handleEditLog(meal.id)}
@@ -680,35 +701,6 @@ export default function FoodTab() {
                     >
                       Logged ✓
                     </button>
-                  )}
-
-                  {isFasted && (
-                    <button
-                      type="button"
-                      onClick={() => handleUndoFast(meal.id)}
-                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
-                    >
-                      Fasted ✓
-                    </button>
-                  )}
-
-                  {fastConfirmMealId === meal.id && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setFastConfirmMealId(null)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-secondary"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmFast}
-                        className="flex-1 rounded-brand bg-primary px-3 py-2 text-sm font-semibold text-background"
-                      >
-                        Mark as fast?
-                      </button>
-                    </div>
                   )}
                 </div>
               );

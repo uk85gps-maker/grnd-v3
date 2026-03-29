@@ -4,6 +4,7 @@
 import { detectPhaseMode } from './phaseMode';
 import { getLatestBodyStats, getStageData } from './reviewData';
 import { getGymSessions } from './gymStructure';
+import { getCrossDayFasting } from './foodLog';
 
 export const STORAGE_KEYS = {
   CHECKLIST_STRUCTURE: 'grnd_checklist_structure',
@@ -553,7 +554,7 @@ export function getCoachContext(): {
         date: string;
         onPlanCount: number;
         deviationCount: number;
-        fastCount: number;
+        skippedCount: number;
         unloggedCount: number;
         fastingHours: number | null;
         dailyTotals: { calories: number; protein: number; carbs: number; fat: number; fibre: number };
@@ -579,16 +580,25 @@ export function getCoachContext(): {
             const log = JSON.parse(raw);
             const onPlanCount = log.meals?.filter((m: any) => m.status === 'plan').length || 0;
             const deviationCount = log.meals?.filter((m: any) => m.status === 'deviation').length || 0;
-            const fastCount = log.meals?.filter((m: any) => m.status === 'fast').length || 0;
+            const skippedCount = log.meals?.filter((m: any) => m.status === 'skipped').length || 0;
             const unloggedCount = log.meals?.filter((m: any) => m.status === 'unlogged').length || 0;
-            
+
+            // Cross-day fasting: gap between last meal of previous day and first of this day
+            let fastingHours: number | null = null;
+            if (i === 0) {
+              const prevDate = new Date(today);
+              prevDate.setDate(today.getDate() - 1);
+              const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
+              fastingHours = getCrossDayFasting(dayKey, prevKey).hours;
+            }
+
             last7Days.push({
               date: dayKey,
               onPlanCount,
               deviationCount,
-              fastCount,
+              skippedCount,
               unloggedCount,
-              fastingHours: log.fastingHours || null,
+              fastingHours,
               dailyTotals: log.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           } catch {
@@ -596,7 +606,7 @@ export function getCoachContext(): {
               date: dayKey,
               onPlanCount: 0,
               deviationCount: 0,
-              fastCount: 0,
+              skippedCount: 0,
               unloggedCount: 0,
               fastingHours: null,
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
@@ -623,7 +633,7 @@ export function getCoachContext(): {
                 date: dayKey,
                 onPlanCount: confirmed.length,
                 deviationCount: 0,
-                fastCount: 0,
+                skippedCount: 0,
                 unloggedCount: 0,
                 fastingHours: null,
                 dailyTotals,
@@ -633,7 +643,7 @@ export function getCoachContext(): {
                 date: dayKey,
                 onPlanCount: 0,
                 deviationCount: 0,
-                fastCount: 0,
+                skippedCount: 0,
                 unloggedCount: 0,
                 fastingHours: null,
                 dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
@@ -644,7 +654,7 @@ export function getCoachContext(): {
               date: dayKey,
               onPlanCount: 0,
               deviationCount: 0,
-              fastCount: 0,
+              skippedCount: 0,
               unloggedCount: 0,
               fastingHours: null,
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
@@ -677,7 +687,7 @@ export function getCoachContext(): {
         fastingHours: todayData.fastingHours,
         onPlanCount: todayData.onPlanCount,
         deviationCount: todayData.deviationCount,
-        fastCount: todayData.fastCount,
+        skippedCount: todayData.skippedCount,
         unloggedCount: todayData.unloggedCount,
         last7Days,
       };

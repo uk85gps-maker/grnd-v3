@@ -13,7 +13,7 @@ export interface MealLog {
   name: string;
   plannedTime: string;
   loggedTime: string | null;
-  status: 'unlogged' | 'plan' | 'deviation' | 'fast';
+  status: 'unlogged' | 'plan' | 'deviation' | 'skipped';
   items: string[];
   macros: FoodMacros;
   source: 'plan' | 'ai_estimate' | 'manual';
@@ -35,6 +35,19 @@ export interface DailyFoodLog {
   dailyTotals: FoodMacros;
 }
 
+// Kada Parshad: fixed macros for 2 tbsp
+export const KADA_PARSHAD_MACROS: FoodMacros = {
+  calories: 190,
+  protein: 1.5,
+  carbs: 18,
+  fat: 12,
+  fibre: 0,
+};
+
+export function isKadaParshad(name: string): boolean {
+  return name.toLowerCase().includes('kada parshad');
+}
+
 export function getFoodLogKey(dateKey?: string): string {
   const key = dateKey || getGrndDayKey();
   return `grnd_food_log_${key}`;
@@ -43,7 +56,7 @@ export function getFoodLogKey(dateKey?: string): string {
 export function loadFoodLog(dateKey?: string): DailyFoodLog {
   const key = getFoodLogKey(dateKey);
   const raw = localStorage.getItem(key);
-  
+
   if (!raw) {
     return {
       meals: [],
@@ -52,7 +65,7 @@ export function loadFoodLog(dateKey?: string): DailyFoodLog {
       dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
     };
   }
-  
+
   try {
     return JSON.parse(raw) as DailyFoodLog;
   } catch {
@@ -70,9 +83,10 @@ export function saveFoodLog(log: DailyFoodLog, dateKey?: string): void {
   localStorage.setItem(key, JSON.stringify(log));
 }
 
+// Only plan and deviation contribute to totals; skipped and unlogged are zero
 export function calculateDailyTotals(meals: MealLog[]): FoodMacros {
   return meals
-    .filter((m) => m.status !== 'fast' && m.status !== 'unlogged')
+    .filter((m) => m.status === 'plan' || m.status === 'deviation')
     .reduce(
       (acc, meal) => ({
         calories: acc.calories + meal.macros.calories,
@@ -85,51 +99,22 @@ export function calculateDailyTotals(meals: MealLog[]): FoodMacros {
     );
 }
 
-export function calculateFastingHours(meals: MealLog[]): number | null {
-  const loggedMeals = meals.filter((m) => m.loggedTime && m.status !== 'fast');
-  
-  if (loggedMeals.length === 0) {
-    return null;
-  }
-  
-  const firstMeal = loggedMeals.find((m) => m.isFirstMeal);
-  const lastMeal = loggedMeals.find((m) => m.isLastMeal);
-  
-  if (!firstMeal || !lastMeal || !firstMeal.loggedTime || !lastMeal.loggedTime) {
-    return null;
-  }
-  
-  const [firstHour, firstMin] = firstMeal.loggedTime.split(':').map(Number);
-  const [lastHour, lastMin] = lastMeal.loggedTime.split(':').map(Number);
-  
-  const firstMinutes = firstHour * 60 + firstMin;
-  const lastMinutes = lastHour * 60 + lastMin;
-  
-  let eatingWindowMinutes = lastMinutes - firstMinutes;
-  if (eatingWindowMinutes < 0) {
-    eatingWindowMinutes += 24 * 60;
-  }
-  
-  const fastingMinutes = 24 * 60 - eatingWindowMinutes;
-  return Math.round((fastingMinutes / 60) * 10) / 10;
-}
-
 export function updateMealFirstLastFlags(meals: MealLog[]): MealLog[] {
-  const loggedMeals = meals.filter((m) => m.loggedTime && m.status !== 'fast');
-  
+  const loggedMeals = meals.filter(
+    (m) => m.loggedTime && (m.status === 'plan' || m.status === 'deviation')
+  );
+
   if (loggedMeals.length === 0) {
     return meals.map((m) => ({ ...m, isFirstMeal: false, isLastMeal: false }));
   }
-  
-  const sortedLogged = [...loggedMeals].sort((a, b) => {
-    const aTime = a.loggedTime || '';
-    const bTime = b.loggedTime || '';
-    return aTime.localeCompare(bTime);
-  });
-  
+
+  const sortedLogged = [...loggedMeals].sort((a, b) =>
+    (a.loggedTime || '').localeCompare(b.loggedTime || '')
+  );
+
   const firstId = sortedLogged[0].id;
   const lastId = sortedLogged[sortedLogged.length - 1].id;
-  
+
   return meals.map((m) => ({
     ...m,
     isFirstMeal: m.id === firstId,
@@ -142,6 +127,60 @@ export function getCurrentTime(): string {
   const hours = now.getHours().toString().padStart(2, '0');
   const minutes = now.getMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+// Returns a Date for the last plan/deviation meal logged on dateKey, or null
+export function getLastMealTimestamp(dateKey: string): Date | null {
+  const log = loadFoodLog(dateKey);
+  const active = log.meals.filter(
+    (m) => (m.status === 'plan' || m.status === 'deviation') && m.loggedTime
+  );
+  if (active.length === 0) return null;
+
+  const sorted = [...active].sort((a, b) =>
+    (a.loggedTime || '').localeCompare(b.loggedTime || '')
+  );
+  const last = sorted[sorted.length - 1];
+  const [h, m] = (last.loggedTime as string).split(':').map(Number);
+  const [y, mo, d] = dateKey.split('-').map(Number);
+  return new Date(y, (mo as number) - 1, d as number, h as number, m as number, 0, 0);
+}
+
+// Returns a Date for the first plan/deviation meal logged on dateKey, or null
+export function getFirstMealTimestamp(dateKey: string): Date | null {
+  const log = loadFoodLog(dateKey);
+  const active = log.meals.filter(
+    (m) => (m.status === 'plan' || m.status === 'deviation') && m.loggedTime
+  );
+  if (active.length === 0) return null;
+
+  const sorted = [...active].sort((a, b) =>
+    (a.loggedTime || '').localeCompare(b.loggedTime || '')
+  );
+  const first = sorted[0];
+  const [h, m] = (first.loggedTime as string).split(':').map(Number);
+  const [y, mo, d] = dateKey.split('-').map(Number);
+  return new Date(y, (mo as number) - 1, d as number, h as number, m as number, 0, 0);
+}
+
+// Cross-day fasting: gap between last plan/deviation meal of yesterday and first of today.
+// locked=true once the first meal today exists (fasting window is sealed).
+// While no meals today, reference is now() so the display ticks live.
+export function getCrossDayFasting(
+  todayKey: string,
+  yesterdayKey: string
+): { hours: number | null; locked: boolean } {
+  const lastYesterday = getLastMealTimestamp(yesterdayKey);
+  if (!lastYesterday) return { hours: null, locked: false };
+
+  const firstToday = getFirstMealTimestamp(todayKey);
+  const reference = firstToday ?? new Date();
+
+  const diffMs = reference.getTime() - lastYesterday.getTime();
+  if (diffMs < 0) return { hours: null, locked: false };
+
+  const hours = Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10;
+  return { hours: Math.min(hours, 48), locked: !!firstToday };
 }
 
 export async function estimateMacros(items: string[]): Promise<FoodMacros> {
