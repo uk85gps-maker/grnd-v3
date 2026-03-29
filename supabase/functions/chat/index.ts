@@ -25,7 +25,7 @@ serve(async (req) => {
         })
       }
 
-      const systemPrompt = "You are a macro estimation assistant. The user is in Australia. Estimate macros using Australian ingredients, Australian cooking oils, and standard Australian portion sizes. Return ONLY a JSON object with no preamble, no markdown, no explanation. Format: { calories: number, protein: number, carbs: number, fat: number, fibre: number }"
+      const systemPrompt = "You are a macro estimation assistant. The user is in Australia. Estimate macros using Australian ingredients, Australian cooking oils, and standard Australian portion sizes. Return ONLY a raw JSON object. Do not wrap in markdown. Do not use backticks. Do not include any explanation, preamble, or formatting. The very first character of your response must be { and the very last must be }. Format: { calories: number, protein: number, carbs: number, fat: number, fibre: number }"
       
       const userMessage = items.join(', ')
 
@@ -80,7 +80,9 @@ serve(async (req) => {
       }
 
       const textContent = data.content[0].text
-      const macros = JSON.parse(textContent)
+      // Strip markdown code fences if the model wraps output despite instructions
+      const cleaned = textContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+      const macros = JSON.parse(cleaned)
 
       return new Response(JSON.stringify(macros), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
