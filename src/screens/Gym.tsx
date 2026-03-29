@@ -398,25 +398,25 @@ export default function Gym() {
                     <div className="mt-4 space-y-3">
                       {sets.map((set) => (
                         <div key={set.setNumber} className="flex items-center gap-2">
-                          <div className="w-12 text-xs text-text-secondary">SET {set.setNumber}</div>
+                          <div className="w-12 shrink-0 text-xs text-text-secondary">SET {set.setNumber}</div>
                           <input
                             type="number"
                             value={set.reps}
                             onChange={(e) => handleSetInput(exercise.id, set.setNumber, 'reps', e.target.value)}
                             placeholder="Reps"
-                            className="flex-1 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                            className="w-20 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
                           />
                           <input
                             type="number"
                             value={set.kg}
                             onChange={(e) => handleSetInput(exercise.id, set.setNumber, 'kg', e.target.value)}
                             placeholder="KG"
-                            className="flex-1 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
+                            className="w-20 rounded-brand bg-background px-3 py-2 text-sm text-text-primary outline-none"
                           />
                           <button
                             type="button"
                             onClick={() => handleToggleSet(exercise.id, set.setNumber)}
-                            className="min-h-[40px] min-w-[40px]"
+                            className="shrink-0"
                           >
                             <div
                               className={
