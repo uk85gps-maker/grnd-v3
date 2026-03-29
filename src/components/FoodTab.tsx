@@ -644,7 +644,10 @@ export default function FoodTab() {
                     <div className="flex-1">
                       <div className="text-base font-semibold text-text-primary">{meal.name}</div>
                       <div className="mt-1 text-sm text-text-secondary">
-                        {meal.time} • {isKadaParshad(meal.name) ? '190cal • P:1.5g C:18g F:12g' : `${meal.plannedMacros.calories}cal • P:${meal.plannedMacros.protein}g C:${meal.plannedMacros.carbs}g F:${meal.plannedMacros.fat}g`}
+                        {(() => {
+                          const m = isLogged ? mealLog!.macros : meal.plannedMacros;
+                          return `${meal.time} • ${m.calories}cal • P:${m.protein}g C:${m.carbs}g F:${m.fat}g`;
+                        })()}
                       </div>
                       {mealLog?.status === 'deviation' && (
                         <div className="mt-1 text-sm text-primary">
