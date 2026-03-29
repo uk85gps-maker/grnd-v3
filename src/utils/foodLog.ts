@@ -149,7 +149,7 @@ export async function estimateMacros(items: string[]): Promise<FoodMacros> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtc21oc3dmaXBid2F2Z2N2ZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI0NTU0MzMsImV4cCI6MjA1ODAzMTQzM30.sBxLCGbxdLQVoRJTLKWqOUJfPWKWPVDHLlQhIpJXYBw',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ items }),
   });
