@@ -45,7 +45,8 @@ export const KADA_PARSHAD_MACROS: FoodMacros = {
 };
 
 export function isKadaParshad(name: string): boolean {
-  return name.toLowerCase().includes('kada parshad');
+  const lower = name.toLowerCase();
+  return lower.includes('kada parshad') || lower.includes('parshad');
 }
 
 export function getFoodLogKey(dateKey?: string): string {

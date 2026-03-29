@@ -336,7 +336,8 @@ export default function FoodTab() {
       isLastMeal: false,
     };
 
-    let updatedMeals = [...foodLog.meals];
+    const currentLog = loadFoodLog(dayKey);
+    let updatedMeals = [...currentLog.meals];
     const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = newMeal;
@@ -347,14 +348,7 @@ export default function FoodTab() {
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
 
-    const updatedLog = {
-      ...foodLog,
-      meals: updatedMeals,
-      dailyTotals,
-      fastingHours: null,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     setHadThisMealId(null);
     setHadThisTime('');
     refreshLog();
@@ -423,7 +417,8 @@ export default function FoodTab() {
     const meal = meals.find((m) => m.id === somethingElseMealId);
     if (!meal) return;
 
-    const isFirstMealOfDay = foodLog.meals.filter((m) => m.loggedTime).length === 0;
+    const currentLog = loadFoodLog(dayKey);
+    const isFirstMealOfDay = currentLog.meals.filter((m) => m.loggedTime).length === 0;
     const time = isFirstMealOfDay ? (deviationTime || getCurrentTime()) : getCurrentTime();
 
     const filledItems = deviationItems.filter((item) => item.trim());
@@ -447,7 +442,7 @@ export default function FoodTab() {
       isLastMeal: false,
     };
 
-    let updatedMeals = [...foodLog.meals];
+    let updatedMeals = [...currentLog.meals];
     const existingIndex = updatedMeals.findIndex((m) => m.id === somethingElseMealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = newMeal;
@@ -458,14 +453,7 @@ export default function FoodTab() {
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
 
-    const updatedLog = {
-      ...foodLog,
-      meals: updatedMeals,
-      dailyTotals,
-      fastingHours: null,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     setSomethingElseMealId(null);
     refreshLog();
   };
@@ -488,7 +476,8 @@ export default function FoodTab() {
       isLastMeal: false,
     };
 
-    let updatedMeals = [...foodLog.meals];
+    const currentLog = loadFoodLog(dayKey);
+    let updatedMeals = [...currentLog.meals];
     const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = skippedMeal;
@@ -497,14 +486,15 @@ export default function FoodTab() {
     }
 
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    saveFoodLog({ ...foodLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     refreshLog();
   };
 
   const handleUndoSkip = (mealId: string) => {
-    const updatedMeals = foodLog.meals.filter((m) => m.id !== mealId);
+    const currentLog = loadFoodLog(dayKey);
+    const updatedMeals = currentLog.meals.filter((m) => m.id !== mealId);
     const dailyTotals = calculateDailyTotals(updatedMeals);
-    saveFoodLog({ ...foodLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     refreshLog();
   };
 
@@ -525,7 +515,8 @@ export default function FoodTab() {
   const handleSaveEditLog = () => {
     if (!editLogMealId) return;
 
-    let updatedMeals = foodLog.meals.map((m) =>
+    const currentLog = loadFoodLog(dayKey);
+    let updatedMeals = currentLog.meals.map((m) =>
       m.id === editLogMealId
         ? {
             ...m,
@@ -544,25 +535,19 @@ export default function FoodTab() {
     updatedMeals = updateMealFirstLastFlags(updatedMeals);
     const dailyTotals = calculateDailyTotals(updatedMeals);
 
-    const updatedLog = {
-      ...foodLog,
-      meals: updatedMeals,
-      dailyTotals,
-      fastingHours: null,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     setEditLogMealId(null);
     refreshLog();
   };
 
   // SUPPLEMENTS
   const handleToggleSupplement = (suppId: string) => {
-    const existing = foodLog.supplements.find((s) => s.id === suppId);
     const supp = supplements.find((s) => s.id === suppId);
     if (!supp) return;
 
-    let updatedSupplements = [...foodLog.supplements];
+    const currentLog = loadFoodLog(dayKey);
+    const existing = currentLog.supplements.find((s) => s.id === suppId);
+    let updatedSupplements = [...currentLog.supplements];
 
     if (existing) {
       updatedSupplements = updatedSupplements.map((s) =>
@@ -577,12 +562,7 @@ export default function FoodTab() {
       });
     }
 
-    const updatedLog = {
-      ...foodLog,
-      supplements: updatedSupplements,
-    };
-
-    saveFoodLog(updatedLog, dayKey);
+    saveFoodLog({ ...currentLog, supplements: updatedSupplements }, dayKey);
     refreshLog();
   };
 
