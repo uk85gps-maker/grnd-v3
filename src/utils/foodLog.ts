@@ -145,19 +145,48 @@ export function getCurrentTime(): string {
 }
 
 export async function estimateMacros(items: string[]): Promise<FoodMacros> {
-  const response = await fetch('https://cmsmhswfipbwavgcveky.supabase.co/functions/v1/chat/macro-estimate', {
-    method: 'POST',
+  const url = 'https://cmsmhswfipbwavgcveky.supabase.co/functions/v1/chat/macro-estimate';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+  };
+  const body = JSON.stringify({ items });
+
+  console.log('Macro estimation request:', {
+    url,
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Content-Type': headers['Content-Type'],
+      'Authorization': headers.Authorization ? `Bearer ${headers.Authorization.substring(0, 20)}...` : 'MISSING',
     },
-    body: JSON.stringify({ items }),
+    body,
   });
-  
-  if (!response.ok) {
-    throw new Error('Estimation failed');
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    console.log('Macro estimation response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Macro estimation error response:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: 'non_json_response', text: errorText };
+      }
+      throw errorData;
+    }
+
+    const data = await response.json();
+    console.log('Macro estimation success:', data);
+    return data as FoodMacros;
+  } catch (error) {
+    console.error('Macro estimation fetch error:', error);
+    throw error;
   }
-  
-  const data = await response.json();
-  return data as FoodMacros;
 }
