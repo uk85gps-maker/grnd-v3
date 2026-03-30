@@ -23,6 +23,7 @@ export default function Coach() {
     situations: '',
     desiredOutcome: '',
   });
+  const [modeToast, setModeToast] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +80,13 @@ export default function Coach() {
   };
 
   const handleToggleMode = (modeId: string) => {
+    const current = getCoachModes();
+    const mode = current.find((m) => m.id === modeId);
+    if (mode && !mode.active && current.filter((m) => m.active).length >= 2) {
+      setModeToast(true);
+      setTimeout(() => setModeToast(false), 2000);
+      return;
+    }
     toggleMode(modeId);
     setModes(getCoachModes());
   };
@@ -463,6 +471,13 @@ export default function Coach() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mode limit toast */}
+      {modeToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-brand border border-[#d4af37] bg-[#141414] px-4 py-3 text-sm text-[#d4af37] shadow-lg transition-opacity">
+          Max 2 modes active at once. Tap an active mode to deactivate it first.
         </div>
       )}
     </div>
