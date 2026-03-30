@@ -2,6 +2,12 @@ export interface PatternEntry {
   weekStart: string;
   summary: string;
   createdAt: string;
+  avgCalories: number | null;
+  avgProtein: number | null;
+  gymSessionCount: number | null;
+  avgSleepHours: number | null;
+  complianceScore: number | null;
+  bodyWeight: number | null;
 }
 
 const STORAGE_KEY = 'grnd_pattern_memory';
@@ -21,13 +27,31 @@ export function savePatternMemory(patterns: PatternEntry[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(patterns));
 }
 
-export function addPatternEntry(weekStart: string, summary: string): void {
+export function addPatternEntry(
+  weekStart: string,
+  summary: string,
+  metrics: {
+    avgCalories: number | null;
+    avgProtein: number | null;
+    gymSessionCount: number | null;
+    avgSleepHours: number | null;
+    complianceScore: number | null;
+    bodyWeight: number | null;
+  }
+): void {
   const patterns = getPatternMemory();
-  patterns.push({
+  const entry: PatternEntry = {
     weekStart,
     summary,
     createdAt: new Date().toISOString(),
-  });
+    ...metrics,
+  };
+  const existingIndex = patterns.findIndex((p) => p.weekStart === weekStart);
+  if (existingIndex !== -1) {
+    patterns[existingIndex] = entry;
+  } else {
+    patterns.push(entry);
+  }
   savePatternMemory(patterns);
 }
 

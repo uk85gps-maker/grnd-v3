@@ -100,14 +100,49 @@ export default function Review() {
 
       const summary = data.content[0].text as string;
 
-      // Compute Monday of current week as YYYY-MM-DD
-      const today = new Date();
-      const dayOfWeek = today.getDay(); // 0=Sun
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      // Compute Monday of current week as YYYY-MM-DD using Sydney timezone
+      const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
+      const dayOfWeek = nowSydney.getDay();
+      const monday = new Date(nowSydney);
+      monday.setDate(nowSydney.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
       const weekStart = monday.toISOString().split('T')[0];
 
-      addPatternEntry(weekStart, summary);
+      // Extract numeric metrics from already-fetched context
+      let avgCalories: number | null = null;
+      let avgProtein: number | null = null;
+      if (Array.isArray(context.macros) && context.macros.length > 0) {
+        const calValues = context.macros.map((d: any) => d.totals?.calories).filter((v: any) => typeof v === 'number');
+        const protValues = context.macros.map((d: any) => d.totals?.protein).filter((v: any) => typeof v === 'number');
+        if (calValues.length > 0) avgCalories = Math.round(calValues.reduce((a: number, b: number) => a + b, 0) / calValues.length);
+        if (protValues.length > 0) avgProtein = Math.round(protValues.reduce((a: number, b: number) => a + b, 0) / protValues.length);
+      } else if (Array.isArray(context.food?.last7Days) && context.food.last7Days.length > 0) {
+        const calValues = context.food.last7Days.map((d: any) => d.dailyTotals?.calories).filter((v: any) => typeof v === 'number');
+        const protValues = context.food.last7Days.map((d: any) => d.dailyTotals?.protein).filter((v: any) => typeof v === 'number');
+        if (calValues.length > 0) avgCalories = Math.round(calValues.reduce((a: number, b: number) => a + b, 0) / calValues.length);
+        if (protValues.length > 0) avgProtein = Math.round(protValues.reduce((a: number, b: number) => a + b, 0) / protValues.length);
+      }
+
+      const gymSessionCount = typeof context.gym?.totalSessionsLast30Days === 'number'
+        ? Math.round(context.gym.totalSessionsLast30Days / 4)
+        : null;
+
+      let avgSleepHours: number | null = null;
+      if (Array.isArray(context.sleep) && context.sleep.length > 0) {
+        const durations = context.sleep.map((d: any) => d.durationMinutes).filter((v: any) => typeof v === 'number');
+        if (durations.length > 0) avgSleepHours = Math.round((durations.reduce((a: number, b: number) => a + b, 0) / durations.length / 60) * 10) / 10;
+      }
+
+      const complianceScore: number | null = (context.compliance as any)?.overall ?? null;
+      const bodyWeight: number | null = context.body?.latest?.weight ?? null;
+
+      addPatternEntry(weekStart, summary, {
+        avgCalories,
+        avgProtein,
+        gymSessionCount,
+        avgSleepHours,
+        complianceScore,
+        bodyWeight,
+      });
 
       setWeeklyReviewStatus('success');
       setTimeout(() => setWeeklyReviewStatus('idle'), 2000);
