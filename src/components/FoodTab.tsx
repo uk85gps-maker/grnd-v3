@@ -90,6 +90,7 @@ export default function FoodTab() {
   const [editLogFibre, setEditLogFibre] = useState('');
 
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const carouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (somethingElseMealId && firstInputRef.current) {
@@ -98,6 +99,15 @@ export default function FoodTab() {
       }, 300);
     }
   }, [somethingElseMealId]);
+
+  useEffect(() => {
+    Object.entries(selectedVariants).forEach(([mealId, idx]) => {
+      const el = carouselRefs.current[mealId];
+      if (el) {
+        el.scrollLeft = idx * el.clientWidth;
+      }
+    });
+  }, [selectedVariants]);
 
   // Auto-skip any still-unlogged meals from the previous day
   useEffect(() => {
@@ -776,10 +786,11 @@ export default function FoodTab() {
 
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
-                  {meal.variants && meal.variants.length > 1 && !isLogged && !isSkipped && (
+                  {meal.variants && meal.variants.length > 0 && !isLogged && !isSkipped && (
                     <div
-                      className="mb-2 flex snap-x snap-mandatory overflow-x-auto"
+                      className="mb-2 flex snap-x snap-mandatory overflow-x-auto touch-pan-x"
                       style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                      ref={(el) => { carouselRefs.current[meal.id] = el; }}
                       onScroll={(e) => {
                         const el = e.currentTarget;
                         const idx = Math.round(el.scrollLeft / el.clientWidth);
