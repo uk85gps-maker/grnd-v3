@@ -90,7 +90,6 @@ export default function FoodTab() {
   const [editLogFibre, setEditLogFibre] = useState('');
 
   const firstInputRef = useRef<HTMLInputElement>(null);
-  const carouselRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (somethingElseMealId && firstInputRef.current) {
@@ -99,15 +98,6 @@ export default function FoodTab() {
       }, 300);
     }
   }, [somethingElseMealId]);
-
-  useEffect(() => {
-    Object.entries(selectedVariants).forEach(([mealId, idx]) => {
-      const el = carouselRefs.current[mealId];
-      if (el) {
-        el.scrollLeft = idx * el.clientWidth;
-      }
-    });
-  }, [selectedVariants]);
 
   // Auto-skip any still-unlogged meals from the previous day
   useEffect(() => {
@@ -787,25 +777,34 @@ export default function FoodTab() {
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
                   {meal.variants && meal.variants.length > 0 && !isLogged && !isSkipped && (
-                    <div
-                      className="mb-2 flex snap-x snap-mandatory overflow-x-auto touch-pan-x"
-                      style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-                      ref={(el) => { carouselRefs.current[meal.id] = el; }}
-                      onScroll={(e) => {
-                        const el = e.currentTarget;
-                        const idx = Math.round(el.scrollLeft / el.clientWidth);
-                        setSelectedVariants((prev) => ({ ...prev, [meal.id]: idx }));
-                      }}
-                    >
-                      {meal.variants.map((variant, idx) => (
-                        <div key={idx} className="w-full flex-shrink-0 snap-center px-1">
-                          <div className={`rounded-brand border px-3 py-2 text-center text-sm font-semibold transition-colors ${
-                            variantIdx === idx ? 'border-primary text-primary' : 'border-[#2a2a2a] text-text-secondary'
-                          }`}>
-                            {variant.name}
-                          </div>
+                    <div className="mb-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.max(0, (prev[meal.id] ?? 0) - 1) }))}
+                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
+                        >
+                          ‹
+                        </button>
+                        <div className="flex-1 rounded-brand border border-primary px-3 py-2 text-center text-sm font-semibold text-primary">
+                          {meal.variants[variantIdx]?.name ?? meal.variants[0].name}
                         </div>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.min(meal.variants!.length - 1, (prev[meal.id] ?? 0) + 1) }))}
+                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
+                        >
+                          ›
+                        </button>
+                      </div>
+                      <div className="mt-1 flex justify-center gap-1">
+                        {meal.variants.map((_, idx) => (
+                          <div
+                            key={idx}
+                            className={`h-1.5 w-1.5 rounded-full ${variantIdx === idx ? 'bg-primary' : 'bg-zinc-600'}`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                   <div className="flex items-start justify-between">
