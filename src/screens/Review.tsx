@@ -17,7 +17,8 @@ import {
   savePeerComparison,
 } from '../utils/reviewData';
 import { getGymSessions } from '../utils/gymStructure';
-import { getComplianceSnapshot } from '../utils/coachContext';
+import { getComplianceSnapshot, getCoachContext } from '../utils/coachContext';
+import { addPatternEntry } from '../utils/patternMemory';
 
 type StreamStatus = 'green' | 'amber' | 'red' | 'grey';
 
@@ -50,6 +51,70 @@ export default function Review() {
   const [editingPyramid, setEditingPyramid] = useState<PyramidLayer | null>(null);
   const [dimensionScore, setDimensionScore] = useState(0);
   const [benchmarkValue, setBenchmarkValue] = useState(0);
+
+  const [weeklyReviewLoading, setWeeklyReviewLoading] = useState(false);
+  const [weeklyReviewStatus, setWeeklyReviewStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [weeklyReviewError, setWeeklyReviewError] = useState('');
+
+  const isSunday = new Date().getDay() === 0;
+
+  const handleWeeklyReview = async () => {
+    setWeeklyReviewLoading(true);
+    setWeeklyReviewStatus('idle');
+    setWeeklyReviewError('');
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+      const context = getCoachContext();
+
+      const systemPrompt = 'You are analysing one week of health and behaviour data for a 40 year old Sikh man building his life deliberately. Write a plain text weekly pattern summary in 4-6 sentences. Cover: what held this week, what slipped, any pattern worth naming, one specific focus for next week. No bullet points. No headers. Plain paragraphs only. Be direct and honest.';
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({
+          system: systemPrompt,
+          messages: [{ role: 'user', content: JSON.stringify(context) }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`API error: ${response.status} - ${JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.content || !data.content[0] || !data.content[0].text) {
+        throw new Error('Invalid response from API');
+      }
+
+      const summary = data.content[0].text as string;
+
+      // Compute Monday of current week as YYYY-MM-DD
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0=Sun
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      const weekStart = monday.toISOString().split('T')[0];
+
+      addPatternEntry(weekStart, summary);
+
+      setWeeklyReviewStatus('success');
+      setTimeout(() => setWeeklyReviewStatus('idle'), 2000);
+    } catch (err) {
+      setWeeklyReviewError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setWeeklyReviewStatus('error');
+    } finally {
+      setWeeklyReviewLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLatestStats(getLatestBodyStats());
@@ -306,6 +371,42 @@ export default function Review() {
         <div className="text-lg font-bold text-primary">Review</div>
         <div className="text-[10px] tracking-widest text-text-secondary">INTELLIGENCE DASHBOARD</div>
       </div>
+
+      {/* Weekly Review */}
+      {isSunday && (
+        <div className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4">
+          <div className="mb-3 text-sm font-semibold text-[#d4af37]">Weekly Review</div>
+          <p className="mb-4 text-xs text-zinc-400">Generate a plain-text pattern summary for this week and save it to Coach memory.</p>
+          <button
+            type="button"
+            onClick={handleWeeklyReview}
+            disabled={weeklyReviewLoading || weeklyReviewStatus === 'success'}
+            className="w-full rounded-brand border border-[#d4af37] bg-background py-3 text-sm font-semibold text-[#d4af37] disabled:opacity-50"
+          >
+            {weeklyReviewLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Reviewing your week...
+              </span>
+            ) : weeklyReviewStatus === 'success' ? (
+              <span className="flex items-center justify-center gap-2 text-green-400">
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Week saved.
+              </span>
+            ) : (
+              'Review this week'
+            )}
+          </button>
+          {weeklyReviewStatus === 'error' && (
+            <p className="mt-3 text-xs text-red-400">{weeklyReviewError}</p>
+          )}
+        </div>
+      )}
 
       {/* 1. Compliance Dashboard */}
       <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
