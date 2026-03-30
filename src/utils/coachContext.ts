@@ -211,11 +211,16 @@ export function getComplianceSnapshot(): {
 
   return {
     checklist: (() => {
+      type SectionNode = { items?: Array<unknown>; sections?: SectionNode[] };
+      function countItems(sections: SectionNode[]): number {
+        return sections.reduce((acc, s) =>
+          acc + (s.items?.length ?? 0) + (s.sections ? countItems(s.sections) : 0), 0);
+      }
       try {
         const structureRaw = localStorage.getItem(STORAGE_KEYS.CHECKLIST_STRUCTURE);
         if (!structureRaw) return null;
-        const structure = JSON.parse(structureRaw) as Array<{ items: Array<unknown> }>;
-        const totalItems = structure.reduce((acc, s) => acc + (s.items?.length || 0), 0);
+        const structure = JSON.parse(structureRaw) as SectionNode[];
+        const totalItems = countItems(structure);
         if (totalItems === 0) return null;
 
         const completionRaw = localStorage.getItem(`${STORAGE_KEYS.CHECKLIST_COMPLETION}_${todayKey}`);
@@ -227,17 +232,17 @@ export function getComplianceSnapshot(): {
         const completionPct = Math.round((completedCount / totalItems) * 100);
         const status: 'green' | 'amber' | 'red' = completionPct >= 80 ? 'green' : completionPct >= 50 ? 'amber' : 'red';
         return { name: 'Checklist', status, value: completionPct, threshold: 80 };
-      } catch {
+      } catch (e) {
+        console.error('compliance checklist:', e);
         return null;
       }
     })(),
 
     sleep: (() => {
       try {
-        const raw = localStorage.getItem(STORAGE_KEYS.SLEEP_LOG);
-        if (!raw) return { name: 'Sleep', status: 'red' as const, value: 0, threshold: 7 };
-        const arr = JSON.parse(raw) as Array<{ dateKey?: string; date?: string; bedTime?: string; wakeTime?: string }>;
-        const entry = Array.isArray(arr) ? arr.find((e) => e.dateKey === todayKey || e.date === todayKey) : null;
+        const raw = localStorage.getItem(`${STORAGE_KEYS.SLEEP_LOG}_${todayKey}`);
+        if (!raw) return null;
+        const entry = JSON.parse(raw) as { bedTime?: string; wakeTime?: string };
         if (!entry?.bedTime || !entry?.wakeTime) return { name: 'Sleep', status: 'red' as const, value: 0, threshold: 7 };
 
         const [bh, bm] = entry.bedTime.split(':').map(Number);
@@ -248,7 +253,8 @@ export function getComplianceSnapshot(): {
         const durationHours = Math.round(((wakeMins - bedMins) / 60) * 10) / 10;
         const status: 'green' | 'amber' | 'red' = durationHours >= 7 ? 'green' : durationHours >= 6 ? 'amber' : 'red';
         return { name: 'Sleep', status, value: durationHours, threshold: 7 };
-      } catch {
+      } catch (e) {
+        console.error('compliance sleep:', e);
         return null;
       }
     })(),
@@ -265,11 +271,12 @@ export function getComplianceSnapshot(): {
         sevenDaysAgo.setDate(today.getDate() - 7);
         const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
         const sessionCount = sessions.filter(
-          (s) => s.date >= sevenDaysAgoStr && s.date <= todayKey && s.dayType !== 'REST'
+          (s) => s.date >= sevenDaysAgoStr && s.date <= todayKey && s.dayType?.toLowerCase() !== 'rest'
         ).length;
         const status: 'green' | 'amber' | 'red' = sessionCount >= 3 ? 'green' : sessionCount >= 2 ? 'amber' : 'red';
         return { name: 'Gym', status, value: sessionCount, threshold: 3 };
-      } catch {
+      } catch (e) {
+        console.error('compliance gym:', e);
         return null;
       }
     })(),
@@ -279,7 +286,13 @@ export function getComplianceSnapshot(): {
         const raw = localStorage.getItem(STORAGE_KEYS.BODY_LOG);
         if (!raw) return null;
         const log = JSON.parse(raw) as Array<{ date: string; weight?: number }>;
-        const withWeight = log.filter((e) => e.weight != null).sort((a, b) => b.date.localeCompare(a.date));
+        const withWeight = log
+          .filter((e) => {
+            if (e.weight == null) return false;
+            const d = new Date(e.date);
+            return !isNaN(d.getTime());
+          })
+          .sort((a, b) => b.date.localeCompare(a.date));
         if (withWeight.length === 0) return null;
         const latestDate = new Date(withWeight[0].date);
         latestDate.setHours(0, 0, 0, 0);
@@ -288,7 +301,8 @@ export function getComplianceSnapshot(): {
         const daysSince = Math.floor((todayMidnight.getTime() - latestDate.getTime()) / (24 * 60 * 60 * 1000));
         const status: 'green' | 'amber' | 'red' = daysSince <= 7 ? 'green' : daysSince <= 14 ? 'amber' : 'red';
         return { name: 'Body Stats', status, value: daysSince, threshold: 7 };
-      } catch {
+      } catch (e) {
+        console.error('compliance body:', e);
         return null;
       }
     })(),
