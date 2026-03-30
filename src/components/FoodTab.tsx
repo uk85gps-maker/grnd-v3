@@ -143,7 +143,7 @@ export default function FoodTab() {
   }, [foodPlan]);
 
   const getMealStatus = (mealId: string): MealLog | null => {
-    return foodLog.meals.find((m) => m.id === mealId) || null;
+    return foodLog.meals.find((m) => (m as any).planItemId === mealId || m.id === mealId) || null;
   };
 
   const getSupplementStatus = (suppId: string): boolean => {
@@ -411,8 +411,9 @@ export default function FoodTab() {
       : (activeVariant ? activeVariant.macros : meal.plannedMacros);
     const items = isKadaParshad(effectiveName) ? ['2 tbsp Kada Parshad'] : [];
 
-    const newMeal: MealLog = {
-      id: mealId,
+    const newMeal = {
+      id: `${mealId}-${Date.now()}`,
+      planItemId: mealId,
       name: effectiveName,
       plannedTime: meal.time,
       loggedTime: time,
@@ -423,11 +424,11 @@ export default function FoodTab() {
       quantity: 1,
       isFirstMeal: false,
       isLastMeal: false,
-    };
+    } as unknown as MealLog;
 
     const currentLog = loadFoodLog(dayKey);
     let updatedMeals = [...currentLog.meals];
-    const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
+    const existingIndex = updatedMeals.findIndex((m) => (m as any).planItemId === mealId || m.id === mealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = newMeal;
     } else {
@@ -462,8 +463,9 @@ export default function FoodTab() {
       fibre: 0,
     };
 
-    const newMeal: MealLog = {
-      id: mealId,
+    const newMeal = {
+      id: `${mealId}-${Date.now()}`,
+      planItemId: mealId,
       name: meal.name,
       plannedTime: meal.time,
       loggedTime: time,
@@ -474,11 +476,11 @@ export default function FoodTab() {
       quantity: qty,
       isFirstMeal: false,
       isLastMeal: false,
-    };
+    } as unknown as MealLog;
 
     const currentLog = loadFoodLog(dayKey);
     let updatedMeals = [...currentLog.meals];
-    const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
+    const existingIndex = updatedMeals.findIndex((m) => (m as any).planItemId === mealId || m.id === mealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = newMeal;
     } else {
@@ -556,8 +558,9 @@ export default function FoodTab() {
 
     const filledItems = deviationItems.filter((item) => item.trim());
 
-    const newMeal: MealLog = {
-      id: somethingElseMealId,
+    const newMeal = {
+      id: `${somethingElseMealId}-${Date.now()}`,
+      planItemId: somethingElseMealId,
       name: filledItems.join(', '),
       plannedTime: meal.time,
       loggedTime: time,
@@ -574,10 +577,10 @@ export default function FoodTab() {
       quantity: 1,
       isFirstMeal: false,
       isLastMeal: false,
-    };
+    } as unknown as MealLog;
 
     let updatedMeals = [...currentLog.meals];
-    const existingIndex = updatedMeals.findIndex((m) => m.id === somethingElseMealId);
+    const existingIndex = updatedMeals.findIndex((m) => (m as any).planItemId === somethingElseMealId || m.id === somethingElseMealId);
     if (existingIndex >= 0) {
       updatedMeals[existingIndex] = newMeal;
     } else {
@@ -634,7 +637,7 @@ export default function FoodTab() {
 
   // EDIT LOG
   const handleEditLog = (mealId: string) => {
-    const mealLog = foodLog.meals.find((m) => m.id === mealId);
+    const mealLog = foodLog.meals.find((m) => (m as any).planItemId === mealId || m.id === mealId);
     if (!mealLog) return;
 
     setEditLogMealId(mealId);
@@ -651,7 +654,7 @@ export default function FoodTab() {
 
     const currentLog = loadFoodLog(dayKey);
     let updatedMeals = currentLog.meals.map((m) =>
-      m.id === editLogMealId
+      ((m as any).planItemId === editLogMealId || m.id === editLogMealId)
         ? {
             ...m,
             loggedTime: editLogTime,
@@ -676,7 +679,7 @@ export default function FoodTab() {
 
   const handleClearAndRelog = (mealId: string) => {
     const currentLog = loadFoodLog(dayKey);
-    const updatedMeals = currentLog.meals.filter((m) => m.id !== mealId);
+    const updatedMeals = currentLog.meals.filter((m) => (m as any).planItemId !== mealId && m.id !== mealId);
     const dailyTotals = calculateDailyTotals(updatedMeals);
     saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
     setEditLogMealId(null);
