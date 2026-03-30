@@ -33,6 +33,8 @@ export default function FoodTab() {
   const [kadaMealId, setKadaMealId] = useState<string | null>(null);
   const [kadaQty, setKadaQty] = useState(2);
   const [kadaTime, setKadaTime] = useState('');
+  const [newItemVariants, setNewItemVariants] = useState<Array<{ name: string; macros: FoodMacros }>>([]);
+  const [variantsOpen, setVariantsOpen] = useState(false);
 
   const [foodPlan, setFoodPlan] = useState<FoodPlanItem[]>(() => {
     runMigrationIfNeeded();
@@ -187,6 +189,26 @@ export default function FoodTab() {
     setNewItemCarbs('');
     setNewItemFat('');
     setNewItemFibre('');
+    setNewItemVariants([]);
+    setVariantsOpen(false);
+  };
+
+  const handleAddVariant = () => {
+    setNewItemVariants((prev) => [...prev, { name: '', macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 } }]);
+  };
+
+  const handleRemoveVariant = (vIdx: number) => {
+    setNewItemVariants((prev) => prev.filter((_, i) => i !== vIdx));
+  };
+
+  const handleVariantNameChange = (vIdx: number, name: string) => {
+    setNewItemVariants((prev) => prev.map((v, i) => i === vIdx ? { ...v, name } : v));
+  };
+
+  const handleVariantMacroChange = (vIdx: number, field: keyof FoodMacros, value: string) => {
+    setNewItemVariants((prev) =>
+      prev.map((v, i) => i === vIdx ? { ...v, macros: { ...v.macros, [field]: parseFloat(value) || 0 } } : v)
+    );
   };
 
   const handleStartAddMeal = () => {
@@ -206,6 +228,7 @@ export default function FoodTab() {
   const handleSaveNewItem = () => {
     if (!newItemName.trim() || !newItemTime.trim()) return;
 
+    const filteredVariants = newItemVariants.filter((v) => v.name.trim());
     const newItem: FoodPlanItem = {
       id: `food-${Date.now()}`,
       name: newItemName.trim(),
@@ -218,6 +241,7 @@ export default function FoodTab() {
         fat: parseFloat(newItemFat) || 0,
         fibre: parseFloat(newItemFibre) || 0,
       },
+      variants: filteredVariants.length > 0 ? filteredVariants : undefined,
       purpose: '',
       order: foodPlan.length,
     };
@@ -252,11 +276,15 @@ export default function FoodTab() {
     setNewItemCarbs(item.plannedMacros.carbs.toString());
     setNewItemFat(item.plannedMacros.fat.toString());
     setNewItemFibre(item.plannedMacros.fibre.toString());
+    const existingVariants = item.variants?.map((v) => ({ name: v.name, macros: { ...v.macros } })) ?? [];
+    setNewItemVariants(existingVariants);
+    setVariantsOpen(existingVariants.length > 0);
   };
 
   const handleSaveEdit = () => {
     if (!editingItem || !newItemName.trim() || !newItemTime.trim()) return;
 
+    const filteredVariants = newItemVariants.filter((v) => v.name.trim());
     const updated = foodPlan.map((item) =>
       item.id === editingItem.id
         ? {
@@ -270,6 +298,7 @@ export default function FoodTab() {
               fat: parseFloat(newItemFat) || 0,
               fibre: parseFloat(newItemFibre) || 0,
             },
+            variants: filteredVariants.length > 0 ? filteredVariants : undefined,
           }
         : item
     );
@@ -645,6 +674,15 @@ export default function FoodTab() {
     refreshLog();
   };
 
+  const handleClearAndRelog = (mealId: string) => {
+    const currentLog = loadFoodLog(dayKey);
+    const updatedMeals = currentLog.meals.filter((m) => m.id !== mealId);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
+    setEditLogMealId(null);
+    refreshLog();
+  };
+
   // SUPPLEMENTS
   const handleToggleSupplement = (suppId: string) => {
     const supp = supplements.find((s) => s.id === suppId);
@@ -943,18 +981,21 @@ export default function FoodTab() {
                 + Add another item
               </button>
 
-              {!estimatedMacros && !estimationFailed && (
+              {estimating && (
+                <div className="py-2 text-center text-sm text-text-secondary">Estimating...</div>
+              )}
+              {!estimating && !estimatedMacros && !estimationFailed && (
                 <button
                   type="button"
                   onClick={handleEstimateMacros}
-                  disabled={estimating || deviationItems.filter((i) => i.trim()).length === 0}
+                  disabled={deviationItems.filter((i) => i.trim()).length === 0}
                   className={
-                    estimating || deviationItems.filter((i) => i.trim()).length === 0
+                    deviationItems.filter((i) => i.trim()).length === 0
                       ? 'w-full rounded-brand bg-gray-700 px-4 py-3 text-base font-semibold text-gray-500 opacity-50'
                       : 'w-full rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background'
                   }
                 >
-                  {estimating ? 'Estimating...' : 'Estimate macros'}
+                  Estimate macros
                 </button>
               )}
 
@@ -1144,6 +1185,13 @@ export default function FoodTab() {
                   Save
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => handleClearAndRelog(editLogMealId!)}
+                className="mt-3 w-full text-center text-sm text-red-400"
+              >
+                Clear &amp; Re-log
+              </button>
             </div>
           </div>
         </div>
@@ -1180,7 +1228,7 @@ export default function FoodTab() {
               </button>
             </div>
             <div className="mb-4 rounded-brand bg-background px-4 py-3 text-sm text-text-secondary">
-              {Math.round((kadaQty / 2) * 190)} cal &nbsp;·&nbsp; P:{Math.round((kadaQty / 2) * 1.5 * 10) / 10}g &nbsp;·&nbsp; C:{Math.round((kadaQty / 2) * 18 * 10) / 10}g &nbsp;·&nbsp; F:{Math.round((kadaQty / 2) * 12 * 10) / 10}g
+              {Math.round((kadaQty / 2) * KADA_PARSHAD_MACROS.calories)} cal &nbsp;·&nbsp; P:{Math.round((kadaQty / 2) * KADA_PARSHAD_MACROS.protein * 10) / 10}g &nbsp;·&nbsp; C:{Math.round((kadaQty / 2) * KADA_PARSHAD_MACROS.carbs * 10) / 10}g &nbsp;·&nbsp; F:{Math.round((kadaQty / 2) * KADA_PARSHAD_MACROS.fat * 10) / 10}g
             </div>
             {kadaTime !== '' && (
               <>
@@ -1310,6 +1358,53 @@ export default function FoodTab() {
                           className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                         />
                       </div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setVariantsOpen((v) => !v)}
+                          className="text-sm text-text-secondary"
+                        >
+                          Rotation options (optional) {variantsOpen ? '▲' : '▼'}
+                        </button>
+                        {variantsOpen && (
+                          <div className="mt-2 space-y-2">
+                            {newItemVariants.map((variant, vIdx) => (
+                              <div key={vIdx} className="rounded-brand border border-[#2a2a2a] p-2 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={variant.name}
+                                    onChange={(e) => handleVariantNameChange(vIdx, e.target.value)}
+                                    placeholder="Variant name"
+                                    className="flex-1 rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveVariant(vIdx)}
+                                    className="text-sm text-red-400"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                  <input type="number" value={variant.macros.calories || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'calories', e.target.value)} placeholder="Cal" className="rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none" />
+                                  <input type="number" value={variant.macros.protein || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'protein', e.target.value)} placeholder="Pro" className="rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none" />
+                                  <input type="number" value={variant.macros.carbs || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'carbs', e.target.value)} placeholder="Carb" className="rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none" />
+                                  <input type="number" value={variant.macros.fat || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'fat', e.target.value)} placeholder="Fat" className="rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none" />
+                                  <input type="number" value={variant.macros.fibre || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'fibre', e.target.value)} placeholder="Fib" className="rounded-brand bg-background px-2 py-1 text-sm text-text-primary outline-none" />
+                                </div>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={handleAddVariant}
+                              className="text-sm text-primary"
+                            >
+                              + Add rotation
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -1392,6 +1487,53 @@ export default function FoodTab() {
                         placeholder="Fibre"
                         className="rounded-brand bg-[#141414] px-3 py-2 text-base text-text-primary outline-none"
                       />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setVariantsOpen((v) => !v)}
+                        className="text-sm text-text-secondary"
+                      >
+                        Rotation options (optional) {variantsOpen ? '▲' : '▼'}
+                      </button>
+                      {variantsOpen && (
+                        <div className="mt-2 space-y-2">
+                          {newItemVariants.map((variant, vIdx) => (
+                            <div key={vIdx} className="rounded-brand border border-[#2a2a2a] p-2 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={variant.name}
+                                  onChange={(e) => handleVariantNameChange(vIdx, e.target.value)}
+                                  placeholder="Variant name"
+                                  className="flex-1 rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVariant(vIdx)}
+                                  className="text-sm text-red-400"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-1">
+                                <input type="number" value={variant.macros.calories || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'calories', e.target.value)} placeholder="Cal" className="rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none" />
+                                <input type="number" value={variant.macros.protein || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'protein', e.target.value)} placeholder="Pro" className="rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none" />
+                                <input type="number" value={variant.macros.carbs || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'carbs', e.target.value)} placeholder="Carb" className="rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none" />
+                                <input type="number" value={variant.macros.fat || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'fat', e.target.value)} placeholder="Fat" className="rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none" />
+                                <input type="number" value={variant.macros.fibre || ''} onChange={(e) => handleVariantMacroChange(vIdx, 'fibre', e.target.value)} placeholder="Fib" className="rounded-brand bg-[#141414] px-2 py-1 text-sm text-text-primary outline-none" />
+                              </div>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={handleAddVariant}
+                            className="text-sm text-primary"
+                          >
+                            + Add rotation
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
