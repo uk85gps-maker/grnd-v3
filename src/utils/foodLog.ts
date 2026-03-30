@@ -206,7 +206,21 @@ export async function estimateMacros(items: string[]): Promise<FoodMacros> {
       throw new Error(`API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
-    return await response.json() as FoodMacros;
+    const raw = await response.json() as Record<string, unknown>;
+
+    const clamp = (val: unknown, cap: number): number => {
+      const n = typeof val === 'number' ? val : parseFloat(val as string);
+      if (!isFinite(n) || n < 0) return 0;
+      return Math.min(n, cap);
+    };
+
+    return {
+      calories: clamp(raw.calories, 5000),
+      protein:  clamp(raw.protein,  500),
+      carbs:    clamp(raw.carbs,    500),
+      fat:      clamp(raw.fat,      500),
+      fibre:    clamp(raw.fibre,    200),
+    };
   } catch (error) {
     if (error instanceof Error) throw error;
     throw new Error('Failed to estimate macros. Please try again.');
