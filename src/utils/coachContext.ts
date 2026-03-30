@@ -300,6 +300,22 @@ export function getComplianceSnapshot(): {
 // Coach Context Function
 // Aggregates all data streams into a single context object for Coach
 export function getCoachContext(): {
+  currentTime: {
+    hour: number;
+    timeOfDay: string;
+    dayProgressPct: number;
+    sleepLoggedToday: boolean;
+    newDayStarted: boolean;
+  };
+  currentPeriod: {
+    dayOfWeek: string;
+    isWeeklyReviewDay: boolean;
+    weekNumber: number;
+    dayOfMonth: number;
+    weekProgressPct: number;
+    monthProgressPct: number;
+    daysUntilDietitianAppointment: number | null;
+  };
   compliance: ReturnType<typeof getComplianceSnapshot>;
   checklist: any;
   sleep: any;
@@ -326,13 +342,13 @@ export function getCoachContext(): {
   // Load last 7 days of mood logs (array structure)
   const moodLogs: Array<{ date: string; entries: MoodLogEntry[] }> = [];
   const today = new Date();
-  
+
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(today.getDate() - i);
     const dayKey = getGrndDayKey(checkDate);
     const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
-    
+
     const raw = localStorage.getItem(moodKey);
     if (raw) {
       try {
@@ -344,7 +360,68 @@ export function getCoachContext(): {
     }
   }
 
+  const now = new Date();
+  const hour = now.getHours();
+  const minutesFromMidnight = hour * 60 + now.getMinutes();
+  const wakingStart = 4 * 60 + 30; // 4:30am = 270 min
+  const wakingEnd = 22 * 60;        // 10:00pm = 1320 min
+  const rawPct = ((minutesFromMidnight - wakingStart) / (wakingEnd - wakingStart)) * 100;
+  const dayProgressPct = Math.round(Math.min(100, Math.max(0, rawPct)));
+
+  let timeOfDay: string;
+  if (hour >= 4 && hour <= 11) timeOfDay = 'morning';
+  else if (hour >= 12 && hour <= 17) timeOfDay = 'afternoon';
+  else if (hour >= 18 && hour <= 21) timeOfDay = 'evening';
+  else timeOfDay = 'night';
+
+  const todayKey = getGrndDayKey();
+  let sleepLoggedToday = false;
+  try {
+    const sleepRaw = localStorage.getItem(STORAGE_KEYS.SLEEP_LOG);
+    if (sleepRaw) {
+      const sleepArr = JSON.parse(sleepRaw) as Array<{ dateKey?: string; date?: string }>;
+      sleepLoggedToday = Array.isArray(sleepArr) && sleepArr.some(
+        (e) => (e.dateKey === todayKey || e.date === todayKey)
+      );
+    }
+  } catch {
+    sleepLoggedToday = false;
+  }
+
+  // ISO week number
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekProgressMap: Record<number, number> = { 1: 14, 2: 28, 3: 43, 4: 57, 5: 71, 6: 86, 0: 100 };
+  const jan4 = new Date(now.getFullYear(), 0, 4);
+  const startOfWeek1 = new Date(jan4);
+  startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const weekNumber = Math.floor((now.getTime() - startOfWeek1.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthProgressPct = Math.round((now.getDate() / daysInMonth) * 100);
+
+  const dietitianDate = new Date(2026, 4, 7); // 7 May 2026
+  dietitianDate.setHours(0, 0, 0, 0);
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((dietitianDate.getTime() - todayMidnight.getTime()) / (24 * 60 * 60 * 1000));
+  const daysUntilDietitianAppointment = diffDays >= 0 ? diffDays : null;
+
   return {
+    currentTime: {
+      hour,
+      timeOfDay,
+      dayProgressPct,
+      sleepLoggedToday,
+      newDayStarted: sleepLoggedToday,
+    },
+    currentPeriod: {
+      dayOfWeek: dayNames[dayOfWeek],
+      isWeeklyReviewDay: dayOfWeek === 0,
+      weekNumber,
+      dayOfMonth: now.getDate(),
+      weekProgressPct: weekProgressMap[dayOfWeek],
+      monthProgressPct,
+      daysUntilDietitianAppointment,
+    },
     compliance,
 
     checklist: (() => {
