@@ -1124,10 +1124,7 @@ export function getCoachContext(): {
       for (let i = 0; i < 7; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(today.getDate() - i);
-        const yyyy = checkDate.getFullYear();
-        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(checkDate.getDate()).padStart(2, '0');
-        const dayKey = `${yyyy}-${mm}-${dd}`;
+        const dayKey = getGrndDayKey(checkDate);
         const raw = localStorage.getItem(`grnd_daily_note_${dayKey}`);
         if (raw && raw.trim()) {
           notes.push({ date: dayKey, note: raw.trim() });
