@@ -776,7 +776,7 @@ export default function FoodTab() {
 
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
-                  {meal.variants && meal.variants.length > 0 && !isLogged && !isSkipped && (
+                  {meal.variants && meal.variants.length > 1 && !isLogged && !isSkipped && (
                     <div className="mb-2">
                       <div className="flex items-center gap-2">
                         <button
