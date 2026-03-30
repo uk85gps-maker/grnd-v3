@@ -220,7 +220,7 @@ export default function LifeTab() {
   const [weeklyExpanded, setWeeklyExpanded] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
 
   const handleDndEnd = (event: DragEndEvent) => {
@@ -1308,7 +1308,7 @@ export default function LifeTab() {
                               <>
                                 {isEditing ? (
                                   <>
-                                    <div className="text-text-secondary cursor-move" {...listeners}>☰</div>
+                                    <div className="text-text-secondary cursor-move" style={{ touchAction: 'none' }} {...listeners}>☰</div>
                                     <button
                                       type="button"
                                       onClick={() => setDetailItem(item)}
@@ -1600,7 +1600,7 @@ export default function LifeTab() {
                       <>
                         {isEditing ? (
                           <>
-                            <div className="text-text-secondary cursor-move" {...listeners}>☰</div>
+                            <div className="text-text-secondary cursor-move" style={{ touchAction: 'none' }} {...listeners}>☰</div>
                             <button
                               type="button"
                               onClick={() => setDetailItem(item)}
