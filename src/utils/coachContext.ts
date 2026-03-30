@@ -477,43 +477,38 @@ export function getCoachContext(): {
     })(),
 
     // Populated by: Today tab - macro tracking (Phase 3b Step 4)
-    // Updated: First checks grnd_food_log, falls back to grnd_macro_log
+    // Updated: First checks grnd_food_log (DailyFoodLog shape), falls back to grnd_macro_log (MacroLogEntry[] shape)
     macros: (() => {
-      const macroLogs: Array<{ date: string; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
+      const macroLogs: Array<{ date: string; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number; fibre: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
       const today = new Date();
-      
+
       for (let i = 0; i < 7; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(today.getDate() - i);
-        const yyyy = checkDate.getFullYear();
-        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(checkDate.getDate()).padStart(2, '0');
-        const dayKey = `${yyyy}-${mm}-${dd}`;
-        
-        // Try food_log first, fall back to macro_log
+        const dayKey = getGrndDayKey(checkDate);
+
         const foodLogKey = `${STORAGE_KEYS.FOOD_LOG}_${dayKey}`;
         const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
-        
-        let raw = localStorage.getItem(foodLogKey);
-        if (!raw) {
-          raw = localStorage.getItem(macroKey);
-        }
-        
-        if (raw) {
+
+        const foodRaw = localStorage.getItem(foodLogKey);
+
+        if (foodRaw) {
+          // grnd_food_log_{dateKey} — DailyFoodLog shape written by FoodTab
           try {
-            const entries = JSON.parse(raw) as MacroLogEntry[];
-            const confirmed = entries.filter((e) => e.confirmed);
-            
-            const totals = confirmed.reduce(
-              (acc, e) => ({
-                calories: acc.calories + e.calories,
-                protein: acc.protein + e.protein,
-                carbs: acc.carbs + e.carbs,
-                fat: acc.fat + e.fat,
+            const log = JSON.parse(foodRaw) as { meals: Array<{ status: string; macros: { calories: number; protein: number; carbs: number; fat: number; fibre: number } }>; };
+            const eaten = log.meals.filter((m) => m.status === 'plan' || m.status === 'deviation');
+
+            const totals = eaten.reduce(
+              (acc, m) => ({
+                calories: acc.calories + m.macros.calories,
+                protein: acc.protein + m.macros.protein,
+                carbs: acc.carbs + m.macros.carbs,
+                fat: acc.fat + m.macros.fat,
+                fibre: acc.fibre + m.macros.fibre,
               }),
-              { calories: 0, protein: 0, carbs: 0, fat: 0 }
+              { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
             );
-            
+
             const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
             let targets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
             if (targetsRaw) {
@@ -523,7 +518,7 @@ export function getCoachContext(): {
                 // Use defaults
               }
             }
-            
+
             let deviation: string | undefined;
             const calDiff = ((totals.calories - targets.calories) / targets.calories) * 100;
             if (Math.abs(calDiff) > 20) {
@@ -531,14 +526,56 @@ export function getCoachContext(): {
             } else if (Math.abs(calDiff) > 10) {
               deviation = calDiff > 0 ? 'Over target by 10-20%' : 'Under target by 10-20%';
             }
-            
-            macroLogs.push({ date: dayKey, entries, totals, targets, deviation });
+
+            macroLogs.push({ date: dayKey, entries: [], totals, targets, deviation });
           } catch {
             // Skip invalid entries
           }
+        } else {
+          // Fallback: grnd_macro_log_{dateKey} — old MacroLogEntry[] shape
+          const macroRaw = localStorage.getItem(macroKey);
+          if (macroRaw) {
+            try {
+              const entries = JSON.parse(macroRaw) as MacroLogEntry[];
+              const confirmed = entries.filter((e) => e.confirmed);
+
+              const totals = confirmed.reduce(
+                (acc, e) => ({
+                  calories: acc.calories + e.calories,
+                  protein: acc.protein + e.protein,
+                  carbs: acc.carbs + e.carbs,
+                  fat: acc.fat + e.fat,
+                  fibre: 0,
+                }),
+                { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
+              );
+
+              const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
+              let targets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
+              if (targetsRaw) {
+                try {
+                  targets = JSON.parse(targetsRaw);
+                } catch {
+                  // Use defaults
+                }
+              }
+
+              let deviation: string | undefined;
+              const calDiff = ((totals.calories - targets.calories) / targets.calories) * 100;
+              if (Math.abs(calDiff) > 20) {
+                deviation = calDiff > 0 ? 'Over target by >20%' : 'Under target by >20%';
+              } else if (Math.abs(calDiff) > 10) {
+                deviation = calDiff > 0 ? 'Over target by 10-20%' : 'Under target by 10-20%';
+              }
+
+              macroLogs.push({ date: dayKey, entries, totals, targets, deviation });
+            } catch {
+              // Skip invalid entries
+            }
+          }
         }
       }
-      
+
       return macroLogs;
     })(),
 
