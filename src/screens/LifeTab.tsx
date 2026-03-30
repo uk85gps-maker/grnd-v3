@@ -6,6 +6,8 @@ import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checkl
 import { DEFAULT_CHECKLIST } from '@/utils/defaultChecklist';
 import { STORAGE_KEYS, MoodLogEntry, MacroLogEntry } from '@/utils/coachContext';
 import { getMealPlanDefaults, getMacroTargets, saveMealPlanDefaults, saveMacroTargets, MealPlanItem, MacroTargets } from '@/utils/mealPlan';
+import { getBodyLog, BodyLogEntry } from '@/utils/reviewData';
+import { getGymSessions, GymSession } from '@/utils/gymStructure';
 
 type SleepLog = {
   bedTime: string;
@@ -53,8 +55,8 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Arrow({ direction, color }: { direction: 'up' | 'down' | 'right'; color: 'gold' | 'grey' }) {
-  const stroke = color === 'gold' ? 'text-primary' : 'text-text-secondary';
+function Arrow({ direction, color }: { direction: 'up' | 'down' | 'right'; color: 'gold' | 'grey' | 'red' }) {
+  const stroke = color === 'gold' ? 'text-primary' : color === 'red' ? 'text-red-400' : 'text-text-secondary';
   const d =
     direction === 'up'
       ? 'M12 19V5m0 0l-5 5m5-5l5 5'
@@ -428,6 +430,49 @@ export default function LifeTab() {
   const allItems = useMemo(() => dailySections.flatMap((s) => s.items), [dailySections]);
   const totalCount = allItems.length;
   const checkedCount = completedIds.filter((id) => allItems.some((item) => item.id === id)).length;
+
+  // Stat carousel data
+  const statCards = useMemo(() => {
+    // Body log
+    const bodyLog: BodyLogEntry[] = (() => {
+      try { return getBodyLog(); } catch { return []; }
+    })();
+    const weightEntries = bodyLog.filter((e) => e.weight != null);
+    const latestWeight = weightEntries[weightEntries.length - 1];
+    const prevWeight = weightEntries[weightEntries.length - 2];
+    const weightDisplay = latestWeight ? `${latestWeight.weight!.toFixed(1)}kg` : '—';
+    const weightDiff = latestWeight && prevWeight ? latestWeight.weight! - prevWeight.weight! : null;
+
+    const bfEntries = bodyLog.filter((e) => e.bodyFat != null);
+    const latestBf = bfEntries[bfEntries.length - 1];
+    const prevBf = bfEntries[bfEntries.length - 2];
+    const bfDisplay = latestBf ? `${latestBf.bodyFat!.toFixed(1)}%` : '—';
+    const bfDiff = latestBf && prevBf ? latestBf.bodyFat! - prevBf.bodyFat! : null;
+
+    // Gym: sessions this calendar week (Mon–today)
+    const gymSessions: GymSession[] = (() => {
+      try { return getGymSessions(); } catch { return []; }
+    })();
+    const todayDate = new Date();
+    const dayOfWeek = todayDate.getDay(); // 0=Sun
+    const daysFromMon = (dayOfWeek + 6) % 7;
+    const monDate = new Date(todayDate);
+    monDate.setHours(0, 0, 0, 0);
+    monDate.setDate(todayDate.getDate() - daysFromMon);
+    const monStr = monDate.toISOString().slice(0, 10);
+    const todayStr = todayDate.toISOString().slice(0, 10);
+    const gymThisWeek = gymSessions.filter((s) => s.date >= monStr && s.date <= todayStr).length;
+
+    // Sleep energy for today
+    const sleepToday = sleepSaved;
+    const sleepEnergyDisplay = sleepToday?.energy != null ? `${sleepToday.energy}/10` : '—';
+    const sleepLogged = sleepToday != null;
+
+    // Checklist %
+    const checklistPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+
+    return { weightDisplay, weightDiff, bfDisplay, bfDiff, gymThisWeek, sleepEnergyDisplay, sleepLogged, checklistPct };
+  }, [sleepSaved, checkedCount, totalCount]);
 
   const weeklyItems = useMemo(() => weeklySection?.items || [], [weeklySection]);
   const weeklyCheckedCount = useMemo(() =>
@@ -1206,46 +1251,57 @@ export default function LifeTab() {
             <div className="flex w-max gap-3 pr-10">
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">WEIGHT</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">80.8kg</div>
+            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.weightDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
-              <Arrow direction="down" color="gold" />
-              <span className="text-primary">-1.3kg</span>
+              {statCards.weightDiff === null ? (
+                <span className="text-text-secondary">no data</span>
+              ) : statCards.weightDiff < 0 ? (
+                <><Arrow direction="down" color="gold" /><span className="text-primary">{statCards.weightDiff.toFixed(1)}kg</span></>
+              ) : statCards.weightDiff > 0 ? (
+                <><Arrow direction="up" color="red" /><span className="text-red-400">+{statCards.weightDiff.toFixed(1)}kg</span></>
+              ) : (
+                <><Arrow direction="right" color="grey" /><span className="text-text-secondary">no change</span></>
+              )}
             </div>
           </div>
 
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">BODY FAT</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">29.4%</div>
+            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.bfDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
-              <Arrow direction="down" color="gold" />
-              <span className="text-primary">improving</span>
+              {statCards.bfDiff === null ? (
+                <span className="text-text-secondary">no data</span>
+              ) : statCards.bfDiff < 0 ? (
+                <><Arrow direction="down" color="gold" /><span className="text-primary">improving</span></>
+              ) : statCards.bfDiff > 0 ? (
+                <><Arrow direction="up" color="red" /><span className="text-red-400">rising</span></>
+              ) : (
+                <><Arrow direction="right" color="grey" /><span className="text-text-secondary">stable</span></>
+              )}
             </div>
           </div>
 
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">GYM</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">3 sessions</div>
+            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.gymThisWeek} sessions</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
-              <Arrow direction="up" color="gold" />
-              <span className="text-primary">this week</span>
+              <span className="text-text-secondary">this week</span>
             </div>
           </div>
 
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">SLEEP</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">8/10</div>
+            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.sleepEnergyDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
-              <Arrow direction="up" color="gold" />
-              <span className="text-primary">energy</span>
+              <span className="text-text-secondary">{statCards.sleepLogged ? 'energy today' : 'not logged'}</span>
             </div>
           </div>
 
           <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
             <div className="text-[11px] tracking-widest text-text-secondary">CHECKLIST</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">57%</div>
+            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.checklistPct}%</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
-              <Arrow direction="right" color="grey" />
-              <span className="text-text-secondary">building</span>
+              <span className="text-text-secondary">today</span>
             </div>
           </div>
             </div>
