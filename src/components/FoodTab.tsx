@@ -29,6 +29,7 @@ export default function FoodTab() {
   const yesterdayKey = useMemo(() => previousDayKey(dayKey), [dayKey]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [fastingDisplay, setFastingDisplay] = useState('--');
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
 
   const [foodPlan, setFoodPlan] = useState<FoodPlanItem[]>(() => {
     runMigrationIfNeeded();
@@ -320,12 +321,17 @@ export default function FoodTab() {
     const meal = meals.find((m) => m.id === mealId);
     if (!meal) return;
 
-    const macros = isKadaParshad(meal.name) ? KADA_PARSHAD_MACROS : meal.plannedMacros;
-    const items = isKadaParshad(meal.name) ? ['2 tbsp Kada Parshad'] : [];
+    const variantIdx = selectedVariants[mealId] ?? 0;
+    const activeVariant = meal.variants && meal.variants.length > 0 ? (meal.variants[variantIdx] ?? null) : null;
+    const effectiveName = activeVariant ? activeVariant.name : meal.name;
+    const macros = isKadaParshad(effectiveName)
+      ? KADA_PARSHAD_MACROS
+      : (activeVariant ? activeVariant.macros : meal.plannedMacros);
+    const items = isKadaParshad(effectiveName) ? ['2 tbsp Kada Parshad'] : [];
 
     const newMeal: MealLog = {
       id: mealId,
-      name: meal.name,
+      name: effectiveName,
       plannedTime: meal.time,
       loggedTime: time,
       status: 'plan',
@@ -617,24 +623,57 @@ export default function FoodTab() {
               const mealLog = getMealStatus(meal.id);
               const isLogged = mealLog?.status === 'plan' || mealLog?.status === 'deviation';
               const isSkipped = mealLog?.status === 'skipped';
+              const variantIdx = selectedVariants[meal.id] ?? 0;
+              const activeVariant = meal.variants && meal.variants.length > 0 ? (meal.variants[variantIdx] ?? null) : null;
+              const displayName = isLogged ? (mealLog!.name || meal.name) : (activeVariant ? activeVariant.name : meal.name);
+              const displayMacros = (() => {
+                if (isLogged) {
+                  const m = mealLog!.macros;
+                  if (isKadaParshad(mealLog!.name || meal.name) && m.calories === 0) return KADA_PARSHAD_MACROS;
+                  return m;
+                }
+                if (activeVariant) return activeVariant.macros;
+                if (isKadaParshad(meal.name)) return KADA_PARSHAD_MACROS;
+                return meal.plannedMacros;
+              })();
 
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
+                  {meal.variants && meal.variants.length > 1 && !isLogged && !isSkipped && (
+                    <div className="mb-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.max(0, (prev[meal.id] ?? 0) - 1) }))}
+                        disabled={variantIdx === 0}
+                        className="px-2 py-1 text-lg text-text-secondary disabled:opacity-30"
+                      >
+                        ‹
+                      </button>
+                      <div className="flex-1 text-center text-sm font-semibold text-text-primary">
+                        {activeVariant?.name ?? meal.name}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.min(meal.variants!.length - 1, (prev[meal.id] ?? 0) + 1) }))}
+                        disabled={variantIdx === meal.variants.length - 1}
+                        className="px-2 py-1 text-lg text-text-secondary disabled:opacity-30"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="text-base font-semibold text-text-primary">{meal.name}</div>
+                      <div className="text-base font-semibold text-text-primary">{displayName}</div>
                       <div className="mt-1 text-sm text-text-secondary">
-                        {(() => {
-                          const m = isLogged ? mealLog!.macros : meal.plannedMacros;
-                          return `${meal.time} • ${m.calories}cal • P:${m.protein}g C:${m.carbs}g F:${m.fat}g`;
-                        })()}
+                        {`${meal.time} • ${displayMacros.calories}cal • P:${displayMacros.protein}g C:${displayMacros.carbs}g F:${displayMacros.fat}g`}
                       </div>
                       {mealLog?.status === 'deviation' && (
                         <div className="mt-1 text-sm text-primary">
                           Had: {mealLog.items.join(', ')}
                         </div>
                       )}
-                      {mealLog?.status === 'plan' && isKadaParshad(meal.name) && (
+                      {mealLog?.status === 'plan' && isKadaParshad(mealLog.name || meal.name) && (
                         <div className="mt-1 text-sm text-text-secondary">2 tbsp</div>
                       )}
                     </div>
@@ -873,7 +912,7 @@ export default function FoodTab() {
                     />
                   </div>
 
-                  {foodLog.meals.filter((m) => m.loggedTime).length === 0 && (
+                  {loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0 && (
                     <>
                       <div className="text-base text-text-secondary">First meal time?</div>
                       <input

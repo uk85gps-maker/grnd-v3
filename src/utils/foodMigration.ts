@@ -15,6 +15,16 @@ export interface FoodPlanItem {
     fat: number;
     fibre: number;
   };
+  variants?: Array<{
+    name: string;
+    macros: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      fibre: number;
+    };
+  }>;
   purpose: string;
   order: number;
 }
