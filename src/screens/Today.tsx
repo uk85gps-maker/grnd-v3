@@ -4,7 +4,10 @@ import LifeTab from '@/screens/LifeTab';
 import FoodTab from '@/components/FoodTab';
 
 export default function Today() {
-  const [activeTab, setActiveTab] = useState<'life' | 'food'>('life');
+  const [activeTab, setActiveTab] = useState<'life' | 'food'>(() => {
+    const stored = localStorage.getItem('grnd_today_active_tab');
+    return stored === 'food' ? 'food' : 'life';
+  });
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-20">
@@ -18,7 +21,7 @@ export default function Today() {
       <div className="flex w-full border-b border-[#2a2a2a]">
         <button
           type="button"
-          onClick={() => setActiveTab('life')}
+          onClick={() => { setActiveTab('life'); localStorage.setItem('grnd_today_active_tab', 'life'); }}
           className={
             activeTab === 'life'
               ? 'flex-1 border-b-2 border-primary pb-3 text-base font-semibold text-primary'
@@ -29,7 +32,7 @@ export default function Today() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('food')}
+          onClick={() => { setActiveTab('food'); localStorage.setItem('grnd_today_active_tab', 'food'); }}
           className={
             activeTab === 'food'
               ? 'flex-1 border-b-2 border-primary pb-3 text-base font-semibold text-primary'

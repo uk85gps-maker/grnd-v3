@@ -717,13 +717,13 @@ export default function FoodTab() {
           <div>
             <div className="text-sm text-text-secondary">CALORIES</div>
             <div className="mt-1 text-lg font-bold text-primary">
-              {foodLog.dailyTotals.calories} / {targets.calories}
+              {Math.round(foodLog.dailyTotals.calories)} / {targets.calories}
             </div>
           </div>
           <div>
             <div className="text-sm text-text-secondary">PROTEIN</div>
             <div className="mt-1 text-lg font-bold text-primary">
-              {foodLog.dailyTotals.protein}g / {targets.protein}g
+              {Math.round(foodLog.dailyTotals.protein)}g / {targets.protein}g
             </div>
           </div>
           <div>
