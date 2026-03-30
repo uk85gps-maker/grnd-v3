@@ -229,7 +229,7 @@ export function getComplianceSnapshot(): {
           const completion = JSON.parse(completionRaw) as { completedIds?: string[] };
           completedCount = completion.completedIds?.length || 0;
         }
-        const completionPct = Math.round((completedCount / totalItems) * 100);
+        const completionPct = Math.min(100, Math.round((completedCount / totalItems) * 100));
         const status: 'green' | 'amber' | 'red' = completionPct >= 80 ? 'green' : completionPct >= 50 ? 'amber' : 'red';
         return { name: 'Checklist', status, value: completionPct, threshold: 80 };
       } catch (e) {
@@ -556,15 +556,20 @@ export function getCoachContext(): {
           try {
             const completion = JSON.parse(completionRaw);
             const completedIds = completion.completedIds || [];
-            let totalItems = 28;
+            type SectionNode = { items?: Array<unknown>; sections?: SectionNode[] };
+            function countItems(sections: SectionNode[]): number {
+              return sections.reduce((acc, s) =>
+                acc + (s.items?.length ?? 0) + (s.sections ? countItems(s.sections) : 0), 0);
+            }
+            let totalItems = 0;
             if (structureRaw) {
               try {
-                const structure = JSON.parse(structureRaw);
-                const allItems = structure.flatMap ? structure.flatMap((s: any) => s.items || []) : [];
-                if (allItems.length > 0) totalItems = allItems.length;
-              } catch { /* use default */ }
+                const structure = JSON.parse(structureRaw) as SectionNode[];
+                totalItems = countItems(structure);
+              } catch { /* leave as 0 */ }
             }
-            const completionPercent = Math.round((completedIds.length / totalItems) * 100);
+            if (totalItems === 0) continue;
+            const completionPercent = Math.min(100, Math.round((completedIds.length / totalItems) * 100));
             checklistLogs.push({ date: dayKey, completedIds, totalItems, completionPercent });
           } catch {
             // Skip invalid entries
