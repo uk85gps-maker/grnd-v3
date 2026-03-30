@@ -56,6 +56,10 @@ export default function Review() {
   const [weeklyReviewStatus, setWeeklyReviewStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [weeklyReviewError, setWeeklyReviewError] = useState('');
 
+  const isSunday = new Date().toLocaleDateString('en-AU', {
+    timeZone: 'Australia/Sydney',
+    weekday: 'long',
+  }) === 'Sunday';
 
   const handleWeeklyReview = async () => {
     setWeeklyReviewLoading(true);
@@ -372,7 +376,8 @@ export default function Review() {
       </div>
 
       {/* Weekly Review */}
-      <div className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4">
+      {isSunday && (
+        <div className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4">
           <div className="mb-3 text-sm font-semibold text-[#d4af37]">Weekly Review</div>
           <p className="mb-4 text-xs text-zinc-400">Generate a plain-text pattern summary for this week and save it to Coach memory.</p>
           <button
@@ -404,6 +409,7 @@ export default function Review() {
             <p className="mt-3 text-xs text-red-400">{weeklyReviewError}</p>
           )}
         </div>
+      )}
 
       {/* 1. Compliance Dashboard */}
       <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
