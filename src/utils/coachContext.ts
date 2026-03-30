@@ -5,6 +5,7 @@ import { detectPhaseMode } from './phaseMode';
 import { getLatestBodyStats, getStageData } from './reviewData';
 import { getGymSessions } from './gymStructure';
 import { getCrossDayFasting } from './foodLog';
+import { getGrndDayKey } from './dayKey';
 
 export const STORAGE_KEYS = {
   CHECKLIST_STRUCTURE: 'grnd_checklist_structure',
@@ -161,10 +162,7 @@ export function getComplianceSnapshot(): {
   // Check mood logging compliance - today and last 7 days
   let moodCompliance: ComplianceStream | null = null;
   const today = new Date();
-  const todayYyyy = today.getFullYear();
-  const todayMm = String(today.getMonth() + 1).padStart(2, '0');
-  const todayDd = String(today.getDate()).padStart(2, '0');
-  const todayKey = `${todayYyyy}-${todayMm}-${todayDd}`;
+  const todayKey = getGrndDayKey();
   const todayMoodKey = `${STORAGE_KEYS.MOOD_LOG}_${todayKey}`;
   
   // Check today's section count
@@ -184,10 +182,7 @@ export function getComplianceSnapshot(): {
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(today.getDate() - i);
-    const yyyy = checkDate.getFullYear();
-    const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(checkDate.getDate()).padStart(2, '0');
-    const dayKey = `${yyyy}-${mm}-${dd}`;
+    const dayKey = getGrndDayKey(checkDate);
     const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
     
     const raw = localStorage.getItem(moodKey);
@@ -335,10 +330,7 @@ export function getCoachContext(): {
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(today.getDate() - i);
-    const yyyy = checkDate.getFullYear();
-    const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(checkDate.getDate()).padStart(2, '0');
-    const dayKey = `${yyyy}-${mm}-${dd}`;
+    const dayKey = getGrndDayKey(checkDate);
     const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
     
     const raw = localStorage.getItem(moodKey);
