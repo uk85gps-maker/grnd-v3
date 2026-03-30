@@ -132,7 +132,7 @@ export default function Review() {
         if (durations.length > 0) avgSleepHours = Math.round((durations.reduce((a: number, b: number) => a + b, 0) / durations.length / 60) * 10) / 10;
       }
 
-      const complianceScore: number | null = (context.compliance as any)?.overall ?? null;
+      const complianceScore: number | null = systemHealthScore ?? null;
       const bodyWeight: number | null = context.body?.latest?.weight ?? null;
 
       addPatternEntry(weekStart, summary, {
