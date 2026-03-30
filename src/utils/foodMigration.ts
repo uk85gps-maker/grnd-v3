@@ -128,6 +128,30 @@ function determineType(itemName: string): 'meal' | 'supplement' {
   return 'meal';
 }
 
+// Repair duplicate IDs in grnd_food_plan (one-time safety pass)
+export function repairFoodPlanIds(): void {
+  const raw = localStorage.getItem(FOOD_PLAN_KEY);
+  if (!raw) return;
+  try {
+    const plan = JSON.parse(raw) as Array<{ id: string }>;
+    const seen = new Set<string>();
+    let repaired = false;
+    const fixed = plan.map((item) => {
+      if (seen.has(item.id)) {
+        repaired = true;
+        return { ...item, id: `food-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+      }
+      seen.add(item.id);
+      return item;
+    });
+    if (repaired) {
+      localStorage.setItem(FOOD_PLAN_KEY, JSON.stringify(fixed));
+    }
+  } catch {
+    // ignore corrupt data
+  }
+}
+
 // Reset migration - restores backup and clears migration data
 export function resetMigration(): void {
   try {

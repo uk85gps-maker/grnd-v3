@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { getGrndDayKey, previousDayKey } from '@/utils/dayKey';
-import { FoodPlanItem, runMigrationIfNeeded } from '@/utils/foodMigration';
+import { FoodPlanItem, runMigrationIfNeeded, repairFoodPlanIds } from '@/utils/foodMigration';
 import { getMacroTargets, MacroTargets } from '@/utils/mealPlan';
 import {
   loadFoodLog,
@@ -30,9 +30,13 @@ export default function FoodTab() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [fastingDisplay, setFastingDisplay] = useState('--');
   const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
+  const [kadaMealId, setKadaMealId] = useState<string | null>(null);
+  const [kadaQty, setKadaQty] = useState(2);
+  const [kadaTime, setKadaTime] = useState('');
 
   const [foodPlan, setFoodPlan] = useState<FoodPlanItem[]>(() => {
     runMigrationIfNeeded();
+    repairFoodPlanIds();
     const raw = localStorage.getItem('grnd_food_plan');
     if (raw) {
       try {
@@ -307,7 +311,56 @@ export default function FoodTab() {
   };
 
   // HAD THIS
-  const handleHadThisClick = (mealId: string) => {
+  const handleHadThisClick = async (mealId: string) => {
+    const meal = meals.find((m) => m.id === mealId);
+    if (!meal) return;
+
+    const variantIdx = selectedVariants[mealId] ?? 0;
+    const activeVariant = meal.variants && meal.variants.length > 0 ? (meal.variants[variantIdx] ?? null) : null;
+    const effectiveName = activeVariant ? activeVariant.name : meal.name;
+    const effectiveMacros = activeVariant ? activeVariant.macros : meal.plannedMacros;
+
+    // Kada Parshad: open quantity picker modal
+    if (isKadaParshad(effectiveName)) {
+      const isFirstMealOfDay = loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0;
+      setKadaMealId(mealId);
+      setKadaQty(2);
+      setKadaTime(isFirstMealOfDay ? getCurrentTime() : '');
+      return;
+    }
+
+    // 0-macro meal: auto-open Something Else with AI estimation pre-triggered
+    if (effectiveMacros.calories === 0) {
+      setSomethingElseMealId(mealId);
+      setDeviationItems([effectiveName]);
+      setEstimatedMacros(null);
+      setEstimationFailed(false);
+      setEstimationError('');
+      setManualCalories('');
+      setManualProtein('');
+      setManualCarbs('');
+      setManualFat('');
+      setManualFibre('');
+      setDeviationTime('');
+      setEstimating(true);
+      try {
+        const macros = await estimateMacros([effectiveName]);
+        setEstimatedMacros(macros);
+        setManualCalories(macros.calories.toString());
+        setManualProtein(macros.protein.toString());
+        setManualCarbs(macros.carbs.toString());
+        setManualFat(macros.fat.toString());
+        setManualFibre(macros.fibre.toString());
+      } catch (error: unknown) {
+        setEstimationFailed(true);
+        setEstimationError(error instanceof Error ? error.message : 'Unknown error');
+      } finally {
+        setEstimating(false);
+      }
+      return;
+    }
+
+    // Normal flow
     const isFirstMealOfDay = loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0;
     if (isFirstMealOfDay) {
       setHadThisMealId(mealId);
@@ -338,6 +391,7 @@ export default function FoodTab() {
       items,
       macros,
       source: 'plan',
+      quantity: 1,
       isFirstMeal: false,
       isLastMeal: false,
     };
@@ -364,6 +418,50 @@ export default function FoodTab() {
     if (hadThisMealId && hadThisTime) {
       logHadThis(hadThisMealId, hadThisTime);
     }
+  };
+
+  const logKadaParshad = (mealId: string, qty: number, time: string) => {
+    const meal = meals.find((m) => m.id === mealId);
+    if (!meal) return;
+
+    const factor = qty / 2;
+    const macros: FoodMacros = {
+      calories: Math.round(factor * KADA_PARSHAD_MACROS.calories),
+      protein: Math.round(factor * KADA_PARSHAD_MACROS.protein * 10) / 10,
+      carbs: Math.round(factor * KADA_PARSHAD_MACROS.carbs * 10) / 10,
+      fat: Math.round(factor * KADA_PARSHAD_MACROS.fat * 10) / 10,
+      fibre: 0,
+    };
+
+    const newMeal: MealLog = {
+      id: mealId,
+      name: meal.name,
+      plannedTime: meal.time,
+      loggedTime: time,
+      status: 'plan',
+      items: [`${qty} tbsp Kada Parshad`],
+      macros,
+      source: 'plan',
+      quantity: qty,
+      isFirstMeal: false,
+      isLastMeal: false,
+    };
+
+    const currentLog = loadFoodLog(dayKey);
+    let updatedMeals = [...currentLog.meals];
+    const existingIndex = updatedMeals.findIndex((m) => m.id === mealId);
+    if (existingIndex >= 0) {
+      updatedMeals[existingIndex] = newMeal;
+    } else {
+      updatedMeals.push(newMeal);
+    }
+
+    updatedMeals = updateMealFirstLastFlags(updatedMeals);
+    const dailyTotals = calculateDailyTotals(updatedMeals);
+
+    saveFoodLog({ ...currentLog, meals: updatedMeals, dailyTotals, fastingHours: null }, dayKey);
+    setKadaMealId(null);
+    refreshLog();
   };
 
   // SOMETHING ELSE
@@ -444,6 +542,7 @@ export default function FoodTab() {
         fibre: parseFloat(manualFibre),
       },
       source: estimatedMacros ? 'ai_estimate' : 'manual',
+      quantity: 1,
       isFirstMeal: false,
       isLastMeal: false,
     };
@@ -640,26 +739,24 @@ export default function FoodTab() {
               return (
                 <div key={meal.id} className="rounded-brand bg-background p-3">
                   {meal.variants && meal.variants.length > 1 && !isLogged && !isSkipped && (
-                    <div className="mb-2 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.max(0, (prev[meal.id] ?? 0) - 1) }))}
-                        disabled={variantIdx === 0}
-                        className="px-2 py-1 text-lg text-text-secondary disabled:opacity-30"
-                      >
-                        ‹
-                      </button>
-                      <div className="flex-1 text-center text-sm font-semibold text-text-primary">
-                        {activeVariant?.name ?? meal.name}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.min(meal.variants!.length - 1, (prev[meal.id] ?? 0) + 1) }))}
-                        disabled={variantIdx === meal.variants.length - 1}
-                        className="px-2 py-1 text-lg text-text-secondary disabled:opacity-30"
-                      >
-                        ›
-                      </button>
+                    <div
+                      className="mb-2 flex snap-x snap-mandatory overflow-x-auto"
+                      style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                      onScroll={(e) => {
+                        const el = e.currentTarget;
+                        const idx = Math.round(el.scrollLeft / el.clientWidth);
+                        setSelectedVariants((prev) => ({ ...prev, [meal.id]: idx }));
+                      }}
+                    >
+                      {meal.variants.map((variant, idx) => (
+                        <div key={idx} className="w-full flex-shrink-0 snap-center px-1">
+                          <div className={`rounded-brand border px-3 py-2 text-center text-sm font-semibold transition-colors ${
+                            variantIdx === idx ? 'border-primary text-primary' : 'border-[#2a2a2a] text-text-secondary'
+                          }`}>
+                            {variant.name}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                   <div className="flex items-start justify-between">
@@ -674,7 +771,9 @@ export default function FoodTab() {
                         </div>
                       )}
                       {mealLog?.status === 'plan' && isKadaParshad(mealLog.name || meal.name) && (
-                        <div className="mt-1 text-sm text-text-secondary">2 tbsp</div>
+                        <div className="mt-1 text-sm text-text-secondary">
+                          {mealLog.quantity ? `${mealLog.quantity} tbsp` : '2 tbsp'}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -815,7 +914,7 @@ export default function FoodTab() {
           onClick={() => setSomethingElseMealId(null)}
         >
           <div
-            className="flex h-dvh max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
+            className="flex h-dvh max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-[#2a2a2a] p-6 pb-4">
@@ -961,7 +1060,7 @@ export default function FoodTab() {
           onClick={() => setEditLogMealId(null)}
         >
           <div
-            className="flex h-dvh max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
+            className="flex h-dvh max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl bg-[#141414]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-[#2a2a2a] p-6 pb-4">
@@ -1045,6 +1144,70 @@ export default function FoodTab() {
                   Save
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kada Parshad Quantity Modal */}
+      {kadaMealId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setKadaMealId(null)}
+        >
+          <div
+            className="flex w-full max-w-md flex-col rounded-t-2xl bg-[#141414] p-6"
+            style={{ maxHeight: '80vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 text-lg font-bold text-text-primary">Kada Parshad</div>
+            <div className="mb-3 text-sm text-text-secondary">How many tablespoons?</div>
+            <div className="mb-4 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setKadaQty((q) => Math.max(1, q - 1))}
+                className="flex h-12 w-12 items-center justify-center rounded-brand bg-background text-2xl text-text-primary"
+              >
+                −
+              </button>
+              <div className="flex-1 text-center text-2xl font-bold text-primary">{kadaQty} tbsp</div>
+              <button
+                type="button"
+                onClick={() => setKadaQty((q) => q + 1)}
+                className="flex h-12 w-12 items-center justify-center rounded-brand bg-background text-2xl text-text-primary"
+              >
+                +
+              </button>
+            </div>
+            <div className="mb-4 rounded-brand bg-background px-4 py-3 text-sm text-text-secondary">
+              {Math.round((kadaQty / 2) * 190)} cal &nbsp;·&nbsp; P:{Math.round((kadaQty / 2) * 1.5 * 10) / 10}g &nbsp;·&nbsp; C:{Math.round((kadaQty / 2) * 18 * 10) / 10}g &nbsp;·&nbsp; F:{Math.round((kadaQty / 2) * 12 * 10) / 10}g
+            </div>
+            {kadaTime !== '' && (
+              <>
+                <div className="mb-1 text-sm text-text-secondary">First meal — what time?</div>
+                <input
+                  type="time"
+                  value={kadaTime}
+                  onChange={(e) => setKadaTime(e.target.value)}
+                  className="mb-4 w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                />
+              </>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setKadaMealId(null)}
+                className="flex-1 rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => logKadaParshad(kadaMealId, kadaQty, kadaTime || getCurrentTime())}
+                className="flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background"
+              >
+                Log {kadaQty} tbsp
+              </button>
             </div>
           </div>
         </div>

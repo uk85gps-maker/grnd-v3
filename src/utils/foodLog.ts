@@ -17,6 +17,7 @@ export interface MealLog {
   items: string[];
   macros: FoodMacros;
   source: 'plan' | 'ai_estimate' | 'manual';
+  quantity?: number;
   isFirstMeal: boolean;
   isLastMeal: boolean;
 }
