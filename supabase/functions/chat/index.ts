@@ -25,7 +25,7 @@ serve(async (req) => {
         })
       }
 
-      const systemPrompt = "You are a macro estimation assistant. The user is in Australia. Estimate macros using Australian ingredients, Australian cooking oils, and standard Australian portion sizes. Return ONLY a raw JSON object. Do not wrap in markdown. Do not use backticks. Do not include any explanation, preamble, or formatting. The very first character of your response must be { and the very last must be }. Format: { calories: number, protein: number, carbs: number, fat: number, fibre: number }"
+      const systemPrompt = "You are a macro estimation assistant. The user is in Australia. Estimate macros using Australian ingredients, Australian cooking oils, and standard Australian portion sizes. South Asian foods including roti, dal, sabzi, rice dishes, and curries are common — use realistic South Asian Australian portion sizes and cooking methods for these items. Return ONLY a raw JSON object. Do not wrap in markdown. Do not use backticks. Do not include any explanation, preamble, or formatting. The very first character of your response must be { and the very last must be }. Format: { calories: number, protein: number, carbs: number, fat: number, fibre: number }"
       
       const userMessage = items.join(', ')
 
@@ -47,7 +47,7 @@ serve(async (req) => {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-sonnet-4-6',
           max_tokens: 200,
           system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
