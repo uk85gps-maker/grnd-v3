@@ -210,60 +210,157 @@ export function getComplianceSnapshot(): {
   }
 
   return {
-    // Will check: Daily completion rate from grnd_checklist_YYYY-MM-DD
-    checklist: null,
+    checklist: (() => {
+      try {
+        const structureRaw = localStorage.getItem(STORAGE_KEYS.CHECKLIST_STRUCTURE);
+        if (!structureRaw) return null;
+        const structure = JSON.parse(structureRaw) as Array<{ items: Array<unknown> }>;
+        const totalItems = structure.reduce((acc, s) => acc + (s.items?.length || 0), 0);
+        if (totalItems === 0) return null;
 
-    // Will check: Sleep duration, quality, consistency from grnd_sleep_log
-    sleep: null,
+        const completionRaw = localStorage.getItem(`${STORAGE_KEYS.CHECKLIST_COMPLETION}_${todayKey}`);
+        let completedCount = 0;
+        if (completionRaw) {
+          const completion = JSON.parse(completionRaw) as { completedIds?: string[] };
+          completedCount = completion.completedIds?.length || 0;
+        }
+        const completionPct = Math.round((completedCount / totalItems) * 100);
+        const status: 'green' | 'amber' | 'red' = completionPct >= 80 ? 'green' : completionPct >= 50 ? 'amber' : 'red';
+        return { name: 'Checklist', status, value: completionPct, threshold: 80 };
+      } catch {
+        return null;
+      }
+    })(),
+
+    sleep: (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.SLEEP_LOG);
+        if (!raw) return { name: 'Sleep', status: 'red' as const, value: 0, threshold: 7 };
+        const arr = JSON.parse(raw) as Array<{ dateKey?: string; date?: string; bedTime?: string; wakeTime?: string }>;
+        const entry = Array.isArray(arr) ? arr.find((e) => e.dateKey === todayKey || e.date === todayKey) : null;
+        if (!entry?.bedTime || !entry?.wakeTime) return { name: 'Sleep', status: 'red' as const, value: 0, threshold: 7 };
+
+        const [bh, bm] = entry.bedTime.split(':').map(Number);
+        const [wh, wm] = entry.wakeTime.split(':').map(Number);
+        let bedMins = bh * 60 + bm;
+        let wakeMins = wh * 60 + wm;
+        if (wakeMins <= bedMins) wakeMins += 24 * 60;
+        const durationHours = Math.round(((wakeMins - bedMins) / 60) * 10) / 10;
+        const status: 'green' | 'amber' | 'red' = durationHours >= 7 ? 'green' : durationHours >= 6 ? 'amber' : 'red';
+        return { name: 'Sleep', status, value: durationHours, threshold: 7 };
+      } catch {
+        return null;
+      }
+    })(),
 
     // Checks: Last 7 days of mood logging - green if 6+, amber if 4-5, red if <4
     mood: moodCompliance,
 
-    // Will check: Session frequency, injury status, effort consistency from grnd_gym_log
-    gym: null,
-
-    // Will check: Weight trend, body fat trend, waist measurement from grnd_body_log
-    body: null,
-
-    // Checks: Last 7 days of macro logging - green if 6+ days with 3+ meals confirmed, amber if 4-5 days, red if <4 days
-    macros: (() => {
-      let daysWithLogging = 0;
-      const today = new Date();
-      
-      for (let i = 0; i < 7; i++) {
-        const checkDate = new Date(today);
-        checkDate.setDate(today.getDate() - i);
-        const yyyy = checkDate.getFullYear();
-        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(checkDate.getDate()).padStart(2, '0');
-        const dayKey = `${yyyy}-${mm}-${dd}`;
-        const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
-        
-        const raw = localStorage.getItem(macroKey);
-        if (raw) {
-          try {
-            const entries = JSON.parse(raw) as MacroLogEntry[];
-            const confirmedCount = entries.filter((e) => e.confirmed).length;
-            if (confirmedCount >= 3) {
-              daysWithLogging++;
-            }
-          } catch {
-            // Skip invalid entries
-          }
-        }
-      }
-      
-      if (daysWithLogging >= 6) {
-        return { name: 'Macro Logging', status: 'green', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
-      } else if (daysWithLogging >= 4) {
-        return { name: 'Macro Logging', status: 'amber', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
-      } else {
-        return { name: 'Macro Logging', status: 'red', value: `${daysWithLogging}/7 days`, threshold: '6+ days' };
+    gym: (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.GYM_LOG);
+        if (!raw) return { name: 'Gym', status: 'red' as const, value: 0, threshold: 3 };
+        const sessions = JSON.parse(raw) as Array<{ date: string; dayType?: string }>;
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+        const sessionCount = sessions.filter(
+          (s) => s.date >= sevenDaysAgoStr && s.date <= todayKey && s.dayType !== 'REST'
+        ).length;
+        const status: 'green' | 'amber' | 'red' = sessionCount >= 3 ? 'green' : sessionCount >= 2 ? 'amber' : 'red';
+        return { name: 'Gym', status, value: sessionCount, threshold: 3 };
+      } catch {
+        return null;
       }
     })(),
 
-    // Will check: Pending specialist actions, overdue bookings from grnd_specialist_actions
-    specialists: null,
+    body: (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.BODY_LOG);
+        if (!raw) return null;
+        const log = JSON.parse(raw) as Array<{ date: string; weight?: number }>;
+        const withWeight = log.filter((e) => e.weight != null).sort((a, b) => b.date.localeCompare(a.date));
+        if (withWeight.length === 0) return null;
+        const latestDate = new Date(withWeight[0].date);
+        latestDate.setHours(0, 0, 0, 0);
+        const todayMidnight = new Date(today);
+        todayMidnight.setHours(0, 0, 0, 0);
+        const daysSince = Math.floor((todayMidnight.getTime() - latestDate.getTime()) / (24 * 60 * 60 * 1000));
+        const status: 'green' | 'amber' | 'red' = daysSince <= 7 ? 'green' : daysSince <= 14 ? 'amber' : 'red';
+        return { name: 'Body Stats', status, value: daysSince, threshold: 7 };
+      } catch {
+        return null;
+      }
+    })(),
+
+    macros: (() => {
+      try {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMins = currentHour * 60 + now.getMinutes();
+        const wakingStart = 4 * 60 + 30;
+        const wakingEnd = 22 * 60;
+        const dayProgressPct = Math.min(100, Math.max(0, ((currentMins - wakingStart) / (wakingEnd - wakingStart)) * 100));
+
+        const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
+        let calorieTarget = 1435;
+        if (targetsRaw) {
+          try { calorieTarget = JSON.parse(targetsRaw).calories || 1435; } catch { /* use default */ }
+        }
+
+        let caloriesLogged = 0;
+        const foodRaw = localStorage.getItem(`${STORAGE_KEYS.FOOD_LOG}_${todayKey}`);
+        if (foodRaw) {
+          const log = JSON.parse(foodRaw) as { meals: Array<{ status: string; macros: { calories: number } }> };
+          caloriesLogged = log.meals
+            .filter((m) => m.status === 'plan' || m.status === 'deviation')
+            .reduce((acc, m) => acc + m.macros.calories, 0);
+        } else {
+          const macroRaw = localStorage.getItem(`${STORAGE_KEYS.MACRO_LOG}_${todayKey}`);
+          if (macroRaw) {
+            const entries = JSON.parse(macroRaw) as MacroLogEntry[];
+            caloriesLogged = entries.filter((e) => e.confirmed).reduce((acc, e) => acc + e.calories, 0);
+          }
+        }
+
+        const caloriePct = calorieTarget > 0 ? Math.round((caloriesLogged / calorieTarget) * 100) : 0;
+
+        // Only flag red if day is far enough along; otherwise treat as in-progress
+        let status: 'green' | 'amber' | 'red';
+        if (caloriePct >= 80) {
+          status = 'green';
+        } else if (caloriePct >= 50) {
+          status = 'amber';
+        } else {
+          status = dayProgressPct > 85 ? 'red' : 'amber';
+        }
+
+        return { name: 'Macros', status, value: caloriePct, threshold: 80 };
+      } catch {
+        return null;
+      }
+    })(),
+
+    specialists: (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.SPECIALIST_ACTIONS);
+        if (!raw) return null;
+        const actions = JSON.parse(raw) as Array<{ status: string; dueDate: string | null }>;
+        const todayMidnight = new Date(today);
+        todayMidnight.setHours(0, 0, 0, 0);
+        const overdueCount = actions.filter((a) => {
+          if (a.status === 'booked' || a.status === 'completed') return false;
+          if (!a.dueDate) return false;
+          const due = new Date(a.dueDate);
+          due.setHours(0, 0, 0, 0);
+          return (todayMidnight.getTime() - due.getTime()) > 14 * 24 * 60 * 60 * 1000;
+        }).length;
+        const status: 'green' | 'amber' | 'red' = overdueCount === 0 ? 'green' : overdueCount <= 2 ? 'amber' : 'red';
+        return { name: 'Specialists', status, value: overdueCount, threshold: 0 };
+      } catch {
+        return null;
+      }
+    })(),
 
     // Checks: Last 7 days of field actions - green if 2+ per week, amber if 1, red if 0
     field: (() => {
