@@ -376,7 +376,7 @@ export default function Review() {
       </div>
 
       {/* Weekly Review */}
-      {isSunday && (
+      {isSunday ? (
         <div className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4">
           <div className="mb-3 text-sm font-semibold text-[#d4af37]">Weekly Review</div>
           <p className="mb-4 text-xs text-zinc-400">Generate a plain-text pattern summary for this week and save it to Coach memory.</p>
@@ -408,6 +408,11 @@ export default function Review() {
           {weeklyReviewStatus === 'error' && (
             <p className="mt-3 text-xs text-red-400">{weeklyReviewError}</p>
           )}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4 opacity-50">
+          <div className="text-sm font-semibold text-[#d4af37]">Weekly Review</div>
+          <div className="mt-1 text-xs text-zinc-400">Available Sunday</div>
         </div>
       )}
 
