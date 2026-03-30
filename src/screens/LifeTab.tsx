@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { getGrndDayKey, previousDayKey } from '@/utils/dayKey';
 import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checklistTypes';
 import { DEFAULT_CHECKLIST } from '@/utils/defaultChecklist';
@@ -81,6 +83,29 @@ function Checkbox({ checked }: { checked: boolean }) {
           <path d="M20 6L9 17l-5-5" />
         </svg>
       ) : null}
+    </div>
+  );
+}
+
+interface SortableWrapperProps {
+  id: string;
+  disabled: boolean;
+  children: (listeners: ReturnType<typeof useSortable>['listeners']) => React.ReactNode;
+}
+
+function SortableWrapper({ id, disabled, children }: SortableWrapperProps) {
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2${isDragging ? ' opacity-50' : ''}`}
+    >
+      {children(listeners)}
     </div>
   );
 }
@@ -193,7 +218,32 @@ export default function LifeTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ sectionId: string; itemId: string } | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [weeklyExpanded, setWeeklyExpanded] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<{ sectionId: string; itemId: string } | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDndEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const sourceSection = sections.find((s) => s.items.some((i) => i.id === activeId));
+    const targetSection = sections.find((s) => s.items.some((i) => i.id === overId));
+
+    if (!sourceSection || !targetSection || sourceSection.id !== targetSection.id) return;
+
+    setSections((prev) =>
+      prev.map((section) => {
+        if (section.id !== sourceSection.id) return section;
+        const oldIndex = section.items.findIndex((i) => i.id === activeId);
+        const newIndex = section.items.findIndex((i) => i.id === overId);
+        return { ...section, items: arrayMove(section.items, oldIndex, newIndex) };
+      })
+    );
+  };
 
   // Focus item state
   interface FocusState {
@@ -849,44 +899,6 @@ export default function LifeTab() {
     setDeleteConfirm(null);
   };
 
-  const handleDragStart = (sectionId: string, itemId: string) => {
-    setDraggedItem({ sectionId, itemId });
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (targetSectionId: string, targetItemId: string) => {
-    if (!draggedItem) return;
-
-    const { sectionId: sourceSectionId, itemId: sourceItemId } = draggedItem;
-
-    if (sourceSectionId !== targetSectionId || sourceItemId === targetItemId) {
-      setDraggedItem(null);
-      return;
-    }
-
-    setSections((prev) => {
-      return prev.map((section) => {
-        if (section.id !== sourceSectionId) return section;
-
-        const items = [...section.items];
-        const sourceIndex = items.findIndex((i) => i.id === sourceItemId);
-        const targetIndex = items.findIndex((i) => i.id === targetItemId);
-
-        if (sourceIndex === -1 || targetIndex === -1) return section;
-
-        const [movedItem] = items.splice(sourceIndex, 1);
-        items.splice(targetIndex, 0, movedItem);
-
-        return { ...section, items };
-      });
-    });
-
-    setDraggedItem(null);
-  };
-
   const handleAddItem = (sectionId: string) => {
     const isWeeklySection = sectionId === 'weekly-environment';
 
@@ -960,6 +972,7 @@ export default function LifeTab() {
   }, [allItems, mealPlanDefaults]);
 
   return (
+    <DndContext sensors={sensors} onDragEnd={handleDndEnd}>
     <>
       {!focusDismissed && focusState.completed.length < 2 && (
         <Card>
@@ -1285,76 +1298,75 @@ export default function LifeTab() {
 
                 {isOpen ? (
                   <div className="px-3 pb-3">
+                    <SortableContext items={section.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
                       {section.items.map((item) => {
                         const checked = completedIds.includes(item.id);
                         return (
-                          <div
-                            key={item.id}
-                            className="flex items-center gap-2"
-                            draggable={isEditing}
-                            onDragStart={() => handleDragStart(section.id, item.id)}
-                            onDragOver={handleDragOver}
-                            onDrop={() => handleDrop(section.id, item.id)}
-                          >
-                            {isEditing ? (
+                          <SortableWrapper key={item.id} id={item.id} disabled={!isEditing}>
+                            {(listeners) => (
                               <>
-                                <div className="text-text-secondary cursor-move">☰</div>
-                                <button
-                                  type="button"
-                                  onClick={() => setDetailItem(item)}
-                                  className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
-                                >
-                                  <div className="text-base text-text-primary">{item.name}</div>
-                                  <div className="mt-1 text-sm text-text-secondary">{item.time}</div>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteConfirm({ sectionId: section.id, itemId: item.id })}
-                                  className="min-h-[44px] px-2 text-red-500"
-                                >
-                                  ✕
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleItem(item.id)}
-                                className={
-                                  checked
-                                    ? 'w-full rounded-brand bg-card/60 px-3 py-3'
-                                    : 'w-full rounded-brand bg-card px-3 py-3'
-                                }
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-1 shrink-0">
-                                    <Checkbox checked={checked} />
-                                  </div>
-                                  <div className="flex-1 text-left">
-                                    <span
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDetailItem(item);
-                                      }}
-                                      className={
-                                        checked
-                                          ? 'text-base text-text-secondary line-through text-left cursor-pointer'
-                                          : 'text-base text-text-primary text-left cursor-pointer'
-                                      }
+                                {isEditing ? (
+                                  <>
+                                    <div className="text-text-secondary cursor-move" {...listeners}>☰</div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDetailItem(item)}
+                                      className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
                                     >
-                                      {item.name}
-                                    </span>
-                                  </div>
-                                  <div className="shrink-0 text-right text-sm text-text-secondary">
-                                    {item.time}
-                                  </div>
-                                </div>
-                              </button>
+                                      <div className="text-base text-text-primary">{item.name}</div>
+                                      <div className="mt-1 text-sm text-text-secondary">{item.time}</div>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteConfirm({ sectionId: section.id, itemId: item.id })}
+                                      className="min-h-[44px] px-2 text-red-500"
+                                    >
+                                      ✕
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleItem(item.id)}
+                                    className={
+                                      checked
+                                        ? 'w-full rounded-brand bg-card/60 px-3 py-3'
+                                        : 'w-full rounded-brand bg-card px-3 py-3'
+                                    }
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="mt-1 shrink-0">
+                                        <Checkbox checked={checked} />
+                                      </div>
+                                      <div className="flex-1 text-left">
+                                        <span
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDetailItem(item);
+                                          }}
+                                          className={
+                                            checked
+                                              ? 'text-base text-text-secondary line-through text-left cursor-pointer'
+                                              : 'text-base text-text-primary text-left cursor-pointer'
+                                          }
+                                        >
+                                          {item.name}
+                                        </span>
+                                      </div>
+                                      <div className="shrink-0 text-right text-sm text-text-secondary">
+                                        {item.time}
+                                      </div>
+                                    </div>
+                                  </button>
+                                )}
+                              </>
                             )}
-                          </div>
+                          </SortableWrapper>
                         );
                       })}
                     </div>
+                    </SortableContext>
 
                     {/* Per-section mood/energy stamp */}
                     {(() => {
@@ -1577,72 +1589,71 @@ export default function LifeTab() {
 
           {weeklyExpanded && (
             <div className="mt-3 space-y-2">
+              <SortableContext items={weeklyItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               {weeklyItems.map((item) => {
                 const checked = completedIds.includes(item.id);
                 const isEditing = editingSection === weeklySection.id;
 
                 return (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-2"
-                    draggable={isEditing}
-                    onDragStart={() => handleDragStart(weeklySection.id, item.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(weeklySection.id, item.id)}
-                  >
-                    {isEditing ? (
+                  <SortableWrapper key={item.id} id={item.id} disabled={!isEditing}>
+                    {(listeners) => (
                       <>
-                        <div className="text-text-secondary cursor-move">☰</div>
-                        <button
-                          type="button"
-                          onClick={() => setDetailItem(item)}
-                          className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
-                        >
-                          <div className="text-base text-text-primary">{item.name}</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm({ sectionId: weeklySection.id, itemId: item.id })}
-                          className="min-h-[44px] px-2 text-red-500"
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleItem(item.id)}
-                        className={
-                          checked
-                            ? 'w-full rounded-brand bg-card/60 px-3 py-3'
-                            : 'w-full rounded-brand bg-card px-3 py-3'
-                        }
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1 shrink-0">
-                            <Checkbox checked={checked} />
-                          </div>
-                          <div className="flex-1 text-left">
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailItem(item);
-                              }}
-                              className={
-                                checked
-                                  ? 'text-base text-text-secondary line-through cursor-pointer'
-                                  : 'text-base text-text-primary cursor-pointer'
-                              }
+                        {isEditing ? (
+                          <>
+                            <div className="text-text-secondary cursor-move" {...listeners}>☰</div>
+                            <button
+                              type="button"
+                              onClick={() => setDetailItem(item)}
+                              className="flex-1 rounded-brand bg-card px-3 py-3 text-left"
                             >
-                              {item.name}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
+                              <div className="text-base text-text-primary">{item.name}</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirm({ sectionId: weeklySection.id, itemId: item.id })}
+                              className="min-h-[44px] px-2 text-red-500"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleItem(item.id)}
+                            className={
+                              checked
+                                ? 'w-full rounded-brand bg-card/60 px-3 py-3'
+                                : 'w-full rounded-brand bg-card px-3 py-3'
+                            }
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1 shrink-0">
+                                <Checkbox checked={checked} />
+                              </div>
+                              <div className="flex-1 text-left">
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDetailItem(item);
+                                  }}
+                                  className={
+                                    checked
+                                      ? 'text-base text-text-secondary line-through cursor-pointer'
+                                      : 'text-base text-text-primary cursor-pointer'
+                                  }
+                                >
+                                  {item.name}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        )}
+                      </>
                     )}
-                  </div>
+                  </SortableWrapper>
                 );
               })}
+              </SortableContext>
 
               {editingSection === weeklySection.id && (
                 <button
@@ -2250,5 +2261,6 @@ export default function LifeTab() {
         />
       </Card>
     </>
+    </DndContext>
   );
 }
