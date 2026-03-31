@@ -265,7 +265,7 @@ export function getComplianceSnapshot(): {
     gym: (() => {
       try {
         const raw = localStorage.getItem(STORAGE_KEYS.GYM_LOG);
-        if (!raw) return { name: 'Gym', status: 'red' as const, value: 0, threshold: 3 };
+        if (!raw) return null;
         const sessions = JSON.parse(raw) as Array<{ date: string; dayType?: string }>;
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
@@ -379,9 +379,7 @@ export function getComplianceSnapshot(): {
     // Checks: Last 7 days of field actions - green if 2+ per week, amber if 1, red if 0
     field: (() => {
       const raw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
-      if (!raw) {
-        return { name: 'Field Actions', status: 'red', value: '0 this week', threshold: '2+ per week' };
-      }
+      if (!raw) return null;
       
       try {
         const outcomes = JSON.parse(raw) as Array<{ loggedAt: string }>;
@@ -402,7 +400,7 @@ export function getComplianceSnapshot(): {
           return { name: 'Field Actions', status: 'red', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
         }
       } catch {
-        return { name: 'Field Actions', status: 'red', value: '0 this week', threshold: '2+ per week' };
+        return null;
       }
     })(),
   };
