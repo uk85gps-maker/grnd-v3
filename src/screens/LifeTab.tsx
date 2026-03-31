@@ -36,6 +36,38 @@ function getBFStatus(bf: number | null): { colour: string; tint: string } | null
   return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
 }
 
+function getWeightStatus(kg: number | null): { colour: string; tint: string } | null {
+  if (kg === null) return null;
+  if (kg >= 80) return { colour: '#ef4444', tint: 'rgba(239,68,68,0.12)' };
+  if (kg >= 75) return { colour: '#f97316', tint: 'rgba(249,115,22,0.12)' };
+  if (kg >= 71) return { colour: '#eab308', tint: 'rgba(234,179,8,0.12)' };
+  return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
+}
+
+function getGymStatus(sessions: number | null): { colour: string; tint: string } | null {
+  if (sessions === null) return null;
+  if (sessions === 0) return { colour: '#ef4444', tint: 'rgba(239,68,68,0.12)' };
+  if (sessions <= 2) return { colour: '#f97316', tint: 'rgba(249,115,22,0.12)' };
+  if (sessions <= 4) return { colour: '#eab308', tint: 'rgba(234,179,8,0.12)' };
+  return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
+}
+
+function getSleepHoursStatus(hours: number | null): { colour: string; tint: string } | null {
+  if (hours === null) return null;
+  if (hours < 5) return { colour: '#ef4444', tint: 'rgba(239,68,68,0.12)' };
+  if (hours < 6) return { colour: '#f97316', tint: 'rgba(249,115,22,0.12)' };
+  if (hours < 7) return { colour: '#eab308', tint: 'rgba(234,179,8,0.12)' };
+  return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
+}
+
+function getChecklistStatus(pct: number | null): { colour: string; tint: string } | null {
+  if (pct === null) return null;
+  if (pct < 40) return { colour: '#ef4444', tint: 'rgba(239,68,68,0.12)' };
+  if (pct < 60) return { colour: '#f97316', tint: 'rgba(249,115,22,0.12)' };
+  if (pct < 80) return { colour: '#eab308', tint: 'rgba(234,179,8,0.12)' };
+  return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
+}
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
@@ -410,7 +442,14 @@ export default function LifeTab() {
     const checklistPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
     const bfValue = latestBf ? latestBf.bodyFat! : null;
-    return { weightDisplay, weightDiff, bfDisplay, bfDiff, bfValue, gymThisWeek, sleepEnergyDisplay, sleepLogged, checklistPct };
+    const weightValue = latestWeight ? latestWeight.weight! : null;
+    const sleepHours = sleepToday ? (() => {
+      const bed = parseTimeToMinutes(sleepToday.bedTime);
+      let wake = parseTimeToMinutes(sleepToday.wakeTime);
+      if (wake <= bed) wake += 24 * 60;
+      return Math.max(0, wake - bed) / 60;
+    })() : null;
+    return { weightDisplay, weightDiff, weightValue, bfDisplay, bfDiff, bfValue, gymThisWeek, sleepEnergyDisplay, sleepLogged, sleepHours, checklistPct };
   }, [sleepSaved, checkedCount, totalCount]);
 
   const weeklyItems = useMemo(() => weeklySection?.items || [], [weeklySection]);
@@ -1108,11 +1147,10 @@ export default function LifeTab() {
 
       <Card>
         <div className="text-lg font-bold text-white mb-3">📊 Stats</div>
-        <div className="-mx-4 overflow-x-auto px-4">
-            <div className="flex w-max gap-3 pr-10">
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-brand bg-card p-3" style={getWeightStatus(statCards.weightValue) ? { backgroundColor: getWeightStatus(statCards.weightValue)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">WEIGHT</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.weightDisplay}</div>
+            <div className="mt-1 text-lg font-bold" style={getWeightStatus(statCards.weightValue) ? { color: getWeightStatus(statCards.weightValue)!.colour } : { color: undefined }}>{statCards.weightDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
               {statCards.weightDiff === null ? (
                 <span className="text-text-secondary">no data</span>
@@ -1126,7 +1164,7 @@ export default function LifeTab() {
             </div>
           </div>
 
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3" style={getBFStatus(statCards.bfValue) ? { backgroundColor: getBFStatus(statCards.bfValue)!.tint } : undefined}>
+          <div className="rounded-brand bg-card p-3" style={getBFStatus(statCards.bfValue) ? { backgroundColor: getBFStatus(statCards.bfValue)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">BODY FAT</div>
             <div className="mt-1 text-lg font-bold" style={getBFStatus(statCards.bfValue) ? { color: getBFStatus(statCards.bfValue)!.colour } : undefined}>{statCards.bfDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
@@ -1142,31 +1180,30 @@ export default function LifeTab() {
             </div>
           </div>
 
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
+          <div className="rounded-brand bg-card p-3" style={getGymStatus(statCards.gymThisWeek) ? { backgroundColor: getGymStatus(statCards.gymThisWeek)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">GYM</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.gymThisWeek} sessions</div>
+            <div className="mt-1 text-lg font-bold" style={getGymStatus(statCards.gymThisWeek) ? { color: getGymStatus(statCards.gymThisWeek)!.colour } : undefined}>{statCards.gymThisWeek} sessions</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
               <span className="text-text-secondary">this week</span>
             </div>
           </div>
 
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
+          <div className="rounded-brand bg-card p-3" style={getSleepHoursStatus(statCards.sleepHours) ? { backgroundColor: getSleepHoursStatus(statCards.sleepHours)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">SLEEP</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.sleepEnergyDisplay}</div>
+            <div className="mt-1 text-lg font-bold" style={getSleepHoursStatus(statCards.sleepHours) ? { color: getSleepHoursStatus(statCards.sleepHours)!.colour } : undefined}>{statCards.sleepEnergyDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
               <span className="text-text-secondary">{statCards.sleepLogged ? 'energy today' : 'not logged'}</span>
             </div>
           </div>
 
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
+          <div className="col-span-2 rounded-brand bg-card p-3" style={getChecklistStatus(statCards.checklistPct) ? { backgroundColor: getChecklistStatus(statCards.checklistPct)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">CHECKLIST</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.checklistPct}%</div>
+            <div className="mt-1 text-lg font-bold" style={getChecklistStatus(statCards.checklistPct) ? { color: getChecklistStatus(statCards.checklistPct)!.colour } : undefined}>{statCards.checklistPct}%</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
               <span className="text-text-secondary">today</span>
             </div>
           </div>
-            </div>
-          </div>
+        </div>
       </Card>
 
       <Card>
