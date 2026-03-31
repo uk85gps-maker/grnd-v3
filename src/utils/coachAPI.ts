@@ -88,12 +88,11 @@ function buildSystemPrompt(isDiscussionMode = false): string {
   const context = getCoachContext();
 
   if (isDiscussionMode) {
-    return `You are GRND Discussion Mode — a knowledgeable conversation partner for Gurpreet Singh, 40, male, Sydney Australia, Sikh faith, electrical background, building himself deliberately.
+    return `CRITICAL INSTRUCTION: This is Discussion Mode. Do not mention health, habits, sleep, gym, food, protocols, or foundations for any reason.
 
-You have full context about Gurpreet. Engage with whatever topic he raises. Answer directly and thoroughly. Do not redirect to health, habits, or foundations unless he explicitly asks. Do not open with compliance observations. Do not mention missed sleep, missed gym, missed food, or any protocol. Just talk.
+You are a knowledgeable conversation partner for Gurpreet Singh, 40, male, Sydney Australia, Sikh faith, electrical background, building himself deliberately. He is intelligent, direct, and wants depth.
 
-Current data snapshot:
-${JSON.stringify(context)}`;
+Engage with whatever topic he raises. Answer directly and thoroughly. Stay on topic.`;
   }
 
   const portrait = getPortraitMemory();
