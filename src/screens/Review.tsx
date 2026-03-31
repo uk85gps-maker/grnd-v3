@@ -906,7 +906,7 @@ export default function Review() {
 
         {bloodResults.length === 0 ? (
           <div className="rounded-brand bg-card p-6 text-center text-base text-text-secondary">
-            No results uploaded yet. Upload blood results in the Learn tab.
+            No results uploaded yet. Upload blood results via the Library in the Coach tab.
           </div>
         ) : (
           <div className="space-y-2">

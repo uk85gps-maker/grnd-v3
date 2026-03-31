@@ -1233,7 +1233,7 @@ export function getCoachContext(): {
       }
     })(),
 
-    // Populated by: Learn tab - material library
+    // Populated by: Coach tab library
     learn: (() => {
       const raw = localStorage.getItem(STORAGE_KEYS.LEARN_MATERIALS);
       
