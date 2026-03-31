@@ -2,6 +2,7 @@ import { getPortraitMemory } from './portraitMemory';
 import { getActiveModes } from './coachModes';
 import { formatPatternMemoryForPrompt } from './patternMemory';
 import { getCoachContext, getComplianceSnapshot } from './coachContext';
+import { mergeBloodResults } from './reviewData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -46,7 +47,33 @@ export async function sendMessageToCoach(
       throw new Error('Invalid response format from API');
     }
 
-    return data.content[0].text;
+    let responseText: string = data.content[0].text;
+
+    // If Medical mode is active, extract and save any blood results block
+    const modesRaw = localStorage.getItem('grnd_coach_modes');
+    const medicalActive = modesRaw
+      ? (() => {
+          try {
+            const modes = JSON.parse(modesRaw) as Array<{ name: string; active: boolean }>;
+            return modes.some((m) => m.name.toLowerCase().includes('medical') && m.active);
+          } catch {
+            return false;
+          }
+        })()
+      : false;
+
+    if (medicalActive) {
+      const blockMatch = responseText.match(/<BLOOD_RESULTS>([\s\S]*?)<\/BLOOD_RESULTS>/);
+      if (blockMatch) {
+        try {
+          const parsed = JSON.parse(blockMatch[1].trim()) as { markers: Array<{ name: string; value: number; unit: string; date: string; optimalMin: number; optimalMax: number; normalMin: number; normalMax: number; tier: 1 | 2 }>; testDate: string };
+          mergeBloodResults(parsed.markers, parsed.testDate);
+        } catch { /* malformed block — ignore, still strip */ }
+        responseText = responseText.replace(/<BLOOD_RESULTS>[\s\S]*?<\/BLOOD_RESULTS>/, '').trim();
+      }
+    }
+
+    return responseText;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -107,13 +134,39 @@ ${patterns}`;
     prioritySignal = `Macro tracking compliance is red. ${compliance.macros.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   }
 
+  const BLOOD_RESULTS_INSTRUCTION = `When the user pastes blood test results, extract all markers and return them in this exact format at the END of your response, after your normal reply:
+
+<BLOOD_RESULTS>
+{
+  "markers": [
+    {
+      "name": "LDL Cholesterol",
+      "value": 4.5,
+      "unit": "mmol/L",
+      "date": "YYYY-MM-DD",
+      "optimalMin": 0,
+      "optimalMax": 2.5,
+      "normalMin": 0,
+      "normalMax": 3.4,
+      "tier": 1
+    }
+  ],
+  "testDate": "YYYY-MM-DD"
+}
+</BLOOD_RESULTS>
+
+Include every marker from the results. Use the date the test was taken for testDate. Australian lab reference ranges apply. Functional medicine optimal ranges apply — not just normal ranges.`;
+
   // Build active modes section
   const modesSection = activeModes.length > 0
     ? `ACTIVE MODES:
-${activeModes.map(m => `${m.emoji} ${m.name}
+${activeModes.map(m => {
+  const isMedical = m.name.toLowerCase().includes('medical');
+  return `${m.emoji} ${m.name}
 Purpose: ${m.purpose}
 Situations: ${m.situations}
-Desired Outcome: ${m.desiredOutcome}`).join('\n\n')}`
+Desired Outcome: ${m.desiredOutcome}${isMedical ? `\n${BLOOD_RESULTS_INSTRUCTION}` : ''}`;
+}).join('\n\n')}`
     : 'ACTIVE MODES:\nNone';
 
   return `You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.

@@ -9,6 +9,7 @@ import {
   saveBodyLogEntry,
   getLatestBodyStats,
   getBloodResults,
+  getMarkerStatus,
   getStageData,
   saveStageData,
   getPyramidLayers,
@@ -32,7 +33,7 @@ interface StreamRow {
 export default function Review() {
   const navigate = useNavigate();
   const [latestStats, setLatestStats] = useState<BodyLogEntry | null>(null);
-  const [bloodResults, setBloodResults] = useState<BloodMarker[]>([]);
+  const [bloodResults, setBloodResults] = useState<{ markers: BloodMarker[]; nextTestDate: string | null }>({ markers: [], nextTestDate: null });
   const [stageData, setStageData] = useState<StageData & { pyramid?: PyramidLayer[] }>(getStageData());
   const [pyramidLayers, setPyramidLayers] = useState<PyramidLayer[]>(getPyramidLayers());
   const [peerComparison, setPeerComparison] = useState<PeerComparison>(getPeerComparison());
@@ -902,30 +903,43 @@ export default function Review() {
 
       {/* 7. Blood Results */}
       <div>
-        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">BLOOD RESULTS</div>
+        <div className="mb-1 text-sm font-semibold tracking-widest text-text-secondary">BLOOD RESULTS</div>
+        {bloodResults.nextTestDate && (
+          <div className="mb-3 text-sm text-[#b8960c]">
+            Next panel: {new Date(bloodResults.nextTestDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+        )}
 
-        {bloodResults.length === 0 ? (
+        {bloodResults.markers.length === 0 ? (
           <div className="rounded-brand bg-card p-6 text-center text-base text-text-secondary">
             No results uploaded yet. Upload blood results via the Library in the Coach tab.
           </div>
         ) : (
           <div className="space-y-2">
-            {bloodResults.map((marker, idx) => (
-              <div key={idx} className="rounded-brand bg-card p-3">
-                <div className="mb-1 flex items-start justify-between">
-                  <div className="text-base font-semibold text-text-primary">{marker.name}</div>
-                  <div className="rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-semibold text-background">
-                    NORMAL
+            {bloodResults.markers.map((marker, idx) => {
+              const status = getMarkerStatus(marker);
+              const badgeClass =
+                status === 'optimal' ? 'bg-green-500 text-background' :
+                status === 'normal' ? 'bg-[#d4af37] text-black' :
+                status === 'low' ? 'bg-amber-500 text-black' :
+                'bg-red-500 text-white';
+              return (
+                <div key={idx} className="rounded-brand bg-card p-3">
+                  <div className="mb-1 flex items-start justify-between">
+                    <div className="text-base font-semibold text-text-primary">{marker.name}</div>
+                    <div className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeClass}`}>
+                      {status.toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="text-lg font-bold text-primary">
+                    {marker.value} {marker.unit}
+                  </div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Optimal: {marker.optimalMin}-{marker.optimalMax} {marker.unit} · {new Date(marker.date).toLocaleDateString()}
                   </div>
                 </div>
-                <div className="text-lg font-bold text-primary">
-                  {marker.value} {marker.unit}
-                </div>
-                <div className="mt-1 text-sm text-text-secondary">
-                  Optimal: {marker.optimalMin}-{marker.optimalMax} {marker.unit} · {new Date(marker.date).toLocaleDateString()}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

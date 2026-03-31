@@ -180,20 +180,48 @@ export function getLatestBodyStats(): BodyLogEntry | null {
   return log[log.length - 1];
 }
 
-export function getBloodResults(): BloodMarker[] {
-  const stored = localStorage.getItem(STORAGE_KEYS.BLOOD_RESULTS);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch {
-      return [];
-    }
-  }
-  return [];
+export function getMarkerStatus(marker: BloodMarker): 'optimal' | 'normal' | 'low' | 'high' {
+  if (marker.value >= marker.optimalMin && marker.value <= marker.optimalMax) return 'optimal';
+  if (marker.value >= marker.normalMin && marker.value <= marker.normalMax) return 'normal';
+  if (marker.value < marker.normalMin) return 'low';
+  return 'high';
 }
 
-export function saveBloodResults(results: BloodMarker[]): void {
-  localStorage.setItem(STORAGE_KEYS.BLOOD_RESULTS, JSON.stringify(results));
+export function getBloodResults(): { markers: BloodMarker[]; nextTestDate: string | null } {
+  const stored = localStorage.getItem(STORAGE_KEYS.BLOOD_RESULTS);
+  if (!stored) return { markers: [], nextTestDate: null };
+  try {
+    const parsed = JSON.parse(stored);
+    // Handle legacy flat array format
+    if (Array.isArray(parsed)) return { markers: parsed, nextTestDate: null };
+    return {
+      markers: Array.isArray(parsed.markers) ? parsed.markers : [],
+      nextTestDate: parsed.nextTestDate ?? null,
+    };
+  } catch {
+    return { markers: [], nextTestDate: null };
+  }
+}
+
+export function saveBloodResults(data: { markers: BloodMarker[]; nextTestDate: string }): void {
+  localStorage.setItem(STORAGE_KEYS.BLOOD_RESULTS, JSON.stringify(data));
+}
+
+export function mergeBloodResults(incoming: BloodMarker[], testDate: string): void {
+  const existing = getBloodResults();
+  const merged = [...existing.markers];
+  for (const marker of incoming) {
+    const idx = merged.findIndex((m) => m.name === marker.name);
+    if (idx !== -1) {
+      merged[idx] = marker;
+    } else {
+      merged.push(marker);
+    }
+  }
+  const next = new Date(testDate);
+  next.setMonth(next.getMonth() + 3);
+  const nextTestDate = next.toISOString().slice(0, 10);
+  saveBloodResults({ markers: merged, nextTestDate });
 }
 
 export function getStageData(): StageData {
