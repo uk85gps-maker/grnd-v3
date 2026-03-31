@@ -918,24 +918,7 @@ export function getCoachContext(): {
 
     specialists: (() => {
       const raw = localStorage.getItem(STORAGE_KEYS.SPECIALIST_ACTIONS);
-      if (!raw) {
-        return {
-          overdue: [
-            { name: 'GP — LDL ferritin sleep apnea BP', daysOverdue: 'unknown' },
-            { name: 'DEXA scan', daysOverdue: 'unknown' },
-            { name: 'Specialist barber', daysOverdue: 'unknown' },
-            { name: 'Personal stylist', daysOverdue: 'unknown' },
-            { name: 'Voice coach', daysOverdue: 'unknown' },
-            { name: 'Toastmasters', daysOverdue: 'unknown' },
-            { name: 'BJJ/Muay Thai research', daysOverdue: 'unknown' },
-            { name: 'Dermatologist', daysOverdue: 'unknown' },
-          ],
-          booked: [
-            { name: 'Sports Dietitian', bookedDate: '26 March 2026', followUp: '7 May 2026' },
-            { name: 'Physio', status: 'active weekly' },
-          ],
-        };
-      }
+      if (!raw) return { overdue: [], booked: [] };
 
       try {
         const actions = JSON.parse(raw) as Array<{

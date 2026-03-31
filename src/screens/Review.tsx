@@ -17,7 +17,7 @@ import {
   savePeerComparison,
 } from '../utils/reviewData';
 import { getGymSessions } from '../utils/gymStructure';
-import { getComplianceSnapshot, getCoachContext } from '../utils/coachContext';
+import { getComplianceSnapshot, getCoachContext, SpecialistAction, STORAGE_KEYS } from '../utils/coachContext';
 import { addPatternEntry } from '../utils/patternMemory';
 
 type StreamStatus = 'green' | 'amber' | 'red' | 'grey';
@@ -55,6 +55,13 @@ export default function Review() {
   const [weeklyReviewLoading, setWeeklyReviewLoading] = useState(false);
   const [weeklyReviewStatus, setWeeklyReviewStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [weeklyReviewError, setWeeklyReviewError] = useState('');
+
+  const [specialists, setSpecialists] = useState<SpecialistAction[]>([]);
+  const [showSpecialistModal, setShowSpecialistModal] = useState(false);
+  const [editingSpecialistIndex, setEditingSpecialistIndex] = useState<number | null>(null);
+  const [specialistForm, setSpecialistForm] = useState<SpecialistAction>({
+    name: '', status: 'pending', purposeNote: '', outcome: '', dueDate: null, bookedDate: null,
+  });
 
   const isSunday = new Date().toLocaleDateString('en-AU', {
     timeZone: 'Australia/Sydney',
@@ -154,10 +161,34 @@ export default function Review() {
     }
   };
 
+  const DEFAULT_SPECIALISTS: SpecialistAction[] = [
+    { name: 'DEXA scan', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Specialist barber', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Personal stylist', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Voice coach', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Toastmasters', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'BJJ/Muay Thai research', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Dermatologist', status: 'pending', purposeNote: '', outcome: '', dueDate: '2026-02-01', bookedDate: null },
+    { name: 'Sports Dietitian', status: 'booked', purposeNote: 'Follow-up', outcome: '', dueDate: '2026-05-07', bookedDate: '2026-03-26' },
+    { name: 'Physio', status: 'booked', purposeNote: 'Active weekly', outcome: '', dueDate: null, bookedDate: null },
+  ];
+
   useEffect(() => {
     setLatestStats(getLatestBodyStats());
     setBloodResults(getBloodResults());
     setGymSessions(getGymSessions());
+
+    const existing = localStorage.getItem(STORAGE_KEYS.SPECIALIST_ACTIONS);
+    if (!existing) {
+      localStorage.setItem(STORAGE_KEYS.SPECIALIST_ACTIONS, JSON.stringify(DEFAULT_SPECIALISTS));
+      setSpecialists(DEFAULT_SPECIALISTS);
+    } else {
+      try {
+        setSpecialists(JSON.parse(existing) as SpecialistAction[]);
+      } catch {
+        setSpecialists(DEFAULT_SPECIALISTS);
+      }
+    }
   }, []);
 
   const complianceSnapshot = useMemo(() => getComplianceSnapshot(), []);
@@ -367,6 +398,28 @@ export default function Review() {
     savePeerComparison(updated);
     setPeerComparison(updated);
     setShowEditBenchmark(null);
+  };
+
+  const handleSaveSpecialist = () => {
+    if (!specialistForm.name.trim()) return;
+    const updated = [...specialists];
+    if (editingSpecialistIndex !== null) {
+      updated[editingSpecialistIndex] = specialistForm;
+    } else {
+      updated.push(specialistForm);
+    }
+    localStorage.setItem(STORAGE_KEYS.SPECIALIST_ACTIONS, JSON.stringify(updated));
+    setSpecialists(updated);
+    setShowSpecialistModal(false);
+  };
+
+  const calcDaysOverdue = (dueDate: string | null): number | null => {
+    if (!dueDate) return null;
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.floor((today.getTime() - due.getTime()) / (24 * 60 * 60 * 1000));
   };
 
   const getStatusColor = (status: StreamStatus) => {
@@ -826,7 +879,62 @@ export default function Review() {
         )}
       </div>
 
-      {/* 8. Peer Comparison */}
+      {/* 8. Specialist Actions */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-sm font-semibold tracking-widest text-text-secondary">SPECIALIST ACTIONS</div>
+          <button
+            type="button"
+            onClick={() => {
+              setSpecialistForm({ name: '', status: 'pending', purposeNote: '', outcome: '', dueDate: null, bookedDate: null });
+              setEditingSpecialistIndex(null);
+              setShowSpecialistModal(true);
+            }}
+            className="rounded-brand border border-primary px-3 py-1 text-sm text-primary"
+          >
+            + Add
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {specialists.map((s, idx) => {
+            const daysOverdue = s.status === 'pending' ? calcDaysOverdue(s.dueDate) : null;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setSpecialistForm({ ...s });
+                  setEditingSpecialistIndex(idx);
+                  setShowSpecialistModal(true);
+                }}
+                className="w-full rounded-brand bg-card p-3 text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-base font-semibold text-text-primary">{s.name}</div>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    s.status === 'booked' ? 'bg-green-500 text-black' :
+                    s.status === 'completed' ? 'bg-zinc-600 text-white' :
+                    'bg-amber-500 text-black'
+                  }`}>
+                    {s.status.toUpperCase()}
+                  </span>
+                </div>
+                {s.status === 'pending' && daysOverdue !== null && daysOverdue > 0 && (
+                  <div className={`mt-1 text-sm ${daysOverdue > 14 ? 'text-red-400' : 'text-amber-400'}`}>
+                    {daysOverdue} days overdue
+                  </div>
+                )}
+                {s.status === 'booked' && s.bookedDate && (
+                  <div className="mt-1 text-sm text-zinc-400">Booked: {s.bookedDate}</div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 9. Peer Comparison */}
       <div>
         <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">PEER COMPARISON</div>
 
@@ -1210,6 +1318,100 @@ export default function Review() {
               >
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Specialist Modal */}
+      {showSpecialistModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setShowSpecialistModal(false)}
+        >
+          <div
+            className="flex max-h-[80vh] w-full max-w-md flex-col rounded-t-brand bg-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 pb-4">
+              <div className="text-lg font-bold text-text-primary">
+                {editingSpecialistIndex !== null ? specialistForm.name : 'Add Specialist'}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto px-6">
+              {editingSpecialistIndex === null && (
+                <div>
+                  <label className="mb-1 block text-sm text-text-secondary">Name</label>
+                  <input
+                    type="text"
+                    value={specialistForm.name}
+                    onChange={(e) => setSpecialistForm({ ...specialistForm, name: e.target.value })}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                    placeholder="e.g. GP, Physio"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-sm text-text-secondary">Status</label>
+                <select
+                  value={specialistForm.status}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, status: e.target.value as SpecialistAction['status'] })}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="booked">Booked</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-text-secondary">Due Date</label>
+                <input
+                  type="date"
+                  value={specialistForm.dueDate || ''}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, dueDate: e.target.value || null })}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                />
+              </div>
+              {specialistForm.status === 'booked' && (
+                <div>
+                  <label className="mb-1 block text-sm text-text-secondary">Booked Date</label>
+                  <input
+                    type="date"
+                    value={specialistForm.bookedDate || ''}
+                    onChange={(e) => setSpecialistForm({ ...specialistForm, bookedDate: e.target.value || null })}
+                    className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="mb-1 block text-sm text-text-secondary">Outcome notes</label>
+                <textarea
+                  value={specialistForm.outcome}
+                  onChange={(e) => setSpecialistForm({ ...specialistForm, outcome: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-text-secondary/20 p-6 pt-4">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSpecialistModal(false)}
+                  className="min-h-[44px] flex-1 rounded-brand bg-background text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSpecialist}
+                  className="min-h-[44px] flex-1 rounded-brand bg-primary font-bold text-background"
+                >
+                  Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
