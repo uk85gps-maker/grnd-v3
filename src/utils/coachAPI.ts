@@ -85,8 +85,18 @@ export async function sendMessageToCoach(
 }
 
 function buildSystemPrompt(isDiscussionMode = false): string {
-  const portrait = getPortraitMemory();
   const context = getCoachContext();
+
+  if (isDiscussionMode) {
+    return `You are GRND Discussion Mode — a knowledgeable conversation partner for Gurpreet Singh, 40, male, Sydney Australia, Sikh faith, electrical background, building himself deliberately.
+
+You have full context about Gurpreet. Engage with whatever topic he raises. Answer directly and thoroughly. Do not redirect to health, habits, or foundations unless he explicitly asks. Do not open with compliance observations. Do not mention missed sleep, missed gym, missed food, or any protocol. Just talk.
+
+Current data snapshot:
+${JSON.stringify(context)}`;
+  }
+
+  const portrait = getPortraitMemory();
   const patterns = formatPatternMemoryForPrompt();
   const activeModes = getActiveModes();
   const compliance = getComplianceSnapshot();
@@ -171,7 +181,7 @@ Desired Outcome: ${m.desiredOutcome}${isMedical ? `\n${BLOOD_RESULTS_INSTRUCTION
 }).join('\n\n')}`
     : 'ACTIVE MODES:\nNone';
 
-  return `${isDiscussionMode ? 'DISCUSSION MODE ACTIVE. For this conversation only: respond only to what is raised. Do not open with compliance observations. Do not reference foundations, missed habits, or health metrics unless the user explicitly asks. Do not redirect the conversation. Engage fully with the topic brought to you.\n\n' : ''}You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
+  return `You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
 
 ${portraitSection}
 
