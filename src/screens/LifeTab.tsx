@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { getGrndDayKey, previousDayKey } from '@/utils/dayKey';
 import { ChecklistItem, ChecklistSection, DailyCompletion } from '@/utils/checklistTypes';
 import { DEFAULT_CHECKLIST } from '@/utils/defaultChecklist';
-import { STORAGE_KEYS, MoodLogEntry, MacroLogEntry } from '@/utils/coachContext';
+import { STORAGE_KEYS, MacroLogEntry } from '@/utils/coachContext';
 import { getMealPlanDefaults, getMacroTargets, saveMealPlanDefaults, saveMacroTargets, MealPlanItem, MacroTargets } from '@/utils/mealPlan';
 import { getBodyLog, BodyLogEntry } from '@/utils/reviewData';
 import { getGymSessions, GymSession } from '@/utils/gymStructure';
@@ -14,25 +14,6 @@ type SleepLog = {
   wakeTime: string;
   energy: number | null;
 };
-
-type SectionMoodState = {
-  energy: number | null;
-  mood: number | null;
-  cause: string;
-};
-
-const DEFAULT_CAUSES = [
-  'Work stress',
-  'Poor sleep',
-  'Good win',
-  'Training session',
-  'Social interaction',
-  'Spiritual practice',
-  'Ate well',
-  'Skipped meals',
-  'Argument',
-  'Fatigue',
-];
 
 const CHECKLIST_STRUCTURE_KEY = 'grnd_checklist_structure';
 
@@ -116,7 +97,6 @@ export default function LifeTab() {
   const dayKey = useMemo(() => getGrndDayKey(), []);
   const completionKey = `grnd_checklist_${dayKey}`;
   const sleepKey = `${STORAGE_KEYS.SLEEP_LOG}_${dayKey}`;
-  const moodKey = `${STORAGE_KEYS.MOOD_LOG}_${dayKey}`;
 
   // Load checklist structure from localStorage or use default
   const [sections, setSections] = useState<ChecklistSection[]>(() => {
@@ -151,14 +131,6 @@ export default function LifeTab() {
   // @ts-expect-error - sleepEditing no longer needed since sleep section only shows when !sleepSaved
   const [sleepEditing, setSleepEditing] = useState(true);
 
-  // Mood/Energy log state - per section
-  const [moodEntries, setMoodEntries] = useState<MoodLogEntry[]>([]);
-  const [sectionMoodStates, setSectionMoodStates] = useState<Record<string, SectionMoodState>>({});
-  const [editingMoodSection, setEditingMoodSection] = useState<string | null>(null);
-  const [causes, setCauses] = useState<string[]>([]);
-  const [newCause, setNewCause] = useState('');
-  const [showAddCause, setShowAddCause] = useState<Record<string, boolean>>({});
-
   // Macro tracking state
   const [macroEntries, setMacroEntries] = useState<MacroLogEntry[]>([]);
   const [mealPlanDefaults, setMealPlanDefaults] = useState<MealPlanItem[]>([]);
@@ -187,24 +159,6 @@ export default function LifeTab() {
   const [deviationMealId, setDeviationMealId] = useState<string | null>(null);
   const [deviationText, setDeviationText] = useState('');
   const [foodHistory, setFoodHistory] = useState<string[]>([]);
-
-  // Daily note
-  const dailyNoteKey = `grnd_daily_note_${dayKey}`;
-  const [dailyNote, setDailyNote] = useState<string>(() => localStorage.getItem(`grnd_daily_note_${dayKey}`) ?? '');
-  const dailyNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleDailyNoteChange = (value: string) => {
-    setDailyNote(value);
-    if (dailyNoteTimer.current) clearTimeout(dailyNoteTimer.current);
-    dailyNoteTimer.current = setTimeout(() => {
-      localStorage.setItem(dailyNoteKey, value);
-    }, 500);
-  };
-
-  const handleDailyNoteBlur = () => {
-    if (dailyNoteTimer.current) clearTimeout(dailyNoteTimer.current);
-    localStorage.setItem(dailyNoteKey, dailyNote);
-  };
 
   // Edit mode state
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -304,20 +258,6 @@ export default function LifeTab() {
       setOpenSection('sleep');
     }
 
-    // Load causes library
-    const storedCauses = localStorage.getItem(STORAGE_KEYS.MOOD_CAUSES);
-    if (storedCauses) {
-      try {
-        setCauses(JSON.parse(storedCauses) as string[]);
-      } catch {
-        setCauses(DEFAULT_CAUSES);
-        localStorage.setItem(STORAGE_KEYS.MOOD_CAUSES, JSON.stringify(DEFAULT_CAUSES));
-      }
-    } else {
-      setCauses(DEFAULT_CAUSES);
-      localStorage.setItem(STORAGE_KEYS.MOOD_CAUSES, JSON.stringify(DEFAULT_CAUSES));
-    }
-
     const raw = localStorage.getItem(completionKey);
     if (raw) {
       try {
@@ -373,16 +313,6 @@ export default function LifeTab() {
       }
     }
 
-    const rawMood = localStorage.getItem(moodKey);
-    if (rawMood) {
-      try {
-        const parsed = JSON.parse(rawMood) as MoodLogEntry[];
-        setMoodEntries(parsed);
-      } catch {
-        setMoodEntries([]);
-      }
-    }
-
     // Load macro data
     const macroKey = `${STORAGE_KEYS.MACRO_LOG}_${dayKey}`;
     const rawMacro = localStorage.getItem(macroKey);
@@ -401,7 +331,7 @@ export default function LifeTab() {
     const targets = getMacroTargets();
     setMacroTargets(targets);
     setTempTargets(targets);
-  }, [completionKey, sleepKey, moodKey, dayKey]);
+  }, [completionKey, sleepKey, dayKey]);
 
   useEffect(() => {
     const completion: DailyCompletion = { completedIds };
@@ -664,84 +594,6 @@ export default function LifeTab() {
 
   const toggleEnergy = (n: number) => {
     setSleep((prev) => ({ ...prev, energy: prev.energy === n ? null : n }));
-  };
-
-  const toggleSectionMoodEnergy = (sectionId: string, n: number) => {
-    setSectionMoodStates((prev) => ({
-      ...prev,
-      [sectionId]: {
-        ...prev[sectionId],
-        energy: prev[sectionId]?.energy === n ? null : n,
-      },
-    }));
-  };
-
-  const toggleSectionMoodRating = (sectionId: string, n: number) => {
-    setSectionMoodStates((prev) => ({
-      ...prev,
-      [sectionId]: {
-        ...prev[sectionId],
-        mood: prev[sectionId]?.mood === n ? null : n,
-      },
-    }));
-  };
-
-  const handleSelectSectionCause = (sectionId: string, cause: string) => {
-    setSectionMoodStates((prev) => ({
-      ...prev,
-      [sectionId]: {
-        ...prev[sectionId],
-        cause: prev[sectionId]?.cause === cause ? '' : cause,
-      },
-    }));
-  };
-
-  const handleSaveSectionMood = (sectionId: string, sectionName: string) => {
-    const state = sectionMoodStates[sectionId];
-    if (!state || !state.energy || !state.mood || !state.cause) return;
-
-    const entry: MoodLogEntry = {
-      section: sectionId,
-      sectionName,
-      timestamp: new Date().toISOString(),
-      energy: state.energy,
-      mood: state.mood,
-      cause: state.cause,
-    };
-
-    const updatedEntries = [...moodEntries.filter((e) => e.section !== sectionId), entry];
-    setMoodEntries(updatedEntries);
-    localStorage.setItem(moodKey, JSON.stringify(updatedEntries));
-    setEditingMoodSection(null);
-    setSectionMoodStates((prev) => {
-      const updated = { ...prev };
-      delete updated[sectionId];
-      return updated;
-    });
-  };
-
-  const handleAddCauseForSection = (sectionId: string) => {
-    if (!newCause.trim()) return;
-    const updatedCauses = [...causes, newCause.trim()];
-    setCauses(updatedCauses);
-    localStorage.setItem(STORAGE_KEYS.MOOD_CAUSES, JSON.stringify(updatedCauses));
-    setSectionMoodStates((prev) => ({
-      ...prev,
-      [sectionId]: {
-        ...prev[sectionId],
-        cause: newCause.trim(),
-      },
-    }));
-    setNewCause('');
-    setShowAddCause((prev) => ({ ...prev, [sectionId]: false }));
-  };
-
-  const getSectionMoodEntry = (sectionId: string): MoodLogEntry | undefined => {
-    return moodEntries.find((e) => e.section === sectionId);
-  };
-
-  const getSectionMoodState = (sectionId: string): SectionMoodState => {
-    return sectionMoodStates[sectionId] || { energy: null, mood: null, cause: '' };
   };
 
   // Additional macro handlers
@@ -1423,177 +1275,6 @@ export default function LifeTab() {
                       })}
                     </div>
                     </SortableContext>
-
-                    {/* Per-section mood/energy stamp */}
-                    {(() => {
-                      const savedEntry = getSectionMoodEntry(section.id);
-                      const currentState = getSectionMoodState(section.id);
-                      const isEditingMood = editingMoodSection === section.id;
-                      const canSave = currentState.energy && currentState.mood && currentState.cause;
-
-                      if (savedEntry && !isEditingMood) {
-                        return (
-                          <div className="mt-3 rounded-brand bg-card/40 p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 text-sm">
-                                <div>
-                                  <span className="text-text-secondary">Energy:</span>{' '}
-                                  <span className="font-semibold text-text-primary">{savedEntry.energy}</span>
-                                </div>
-                                <div>
-                                  <span className="text-text-secondary">Mood:</span>{' '}
-                                  <span className="font-semibold text-text-primary">{savedEntry.mood}</span>
-                                </div>
-                                <div>
-                                  <span className="text-text-secondary">Cause:</span>{' '}
-                                  <span className="text-text-primary">{savedEntry.cause}</span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingMoodSection(section.id);
-                                  setSectionMoodStates((prev) => ({
-                                    ...prev,
-                                    [section.id]: {
-                                      energy: savedEntry.energy,
-                                      mood: savedEntry.mood,
-                                      cause: savedEntry.cause,
-                                    },
-                                  }));
-                                }}
-                                className="text-sm text-primary"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (isEditingMood || !savedEntry) {
-                        return (
-                          <div className="mt-3 space-y-3 rounded-brand bg-card/40 p-3">
-                            <div className="flex items-center gap-2">
-                              <div className="text-[10px] font-semibold tracking-widest text-text-secondary">ENERGY</div>
-                              <div className="flex gap-1">
-                                {Array.from({ length: 10 }).map((_, i) => {
-                                  const n = i + 1;
-                                  const active = currentState.energy === n;
-                                  return (
-                                    <button
-                                      key={n}
-                                      type="button"
-                                      onClick={() => toggleSectionMoodEnergy(section.id, n)}
-                                      className="min-h-[32px] w-7"
-                                    >
-                                      <div
-                                        className={
-                                          active
-                                            ? 'mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-background'
-                                            : 'mx-auto flex h-6 w-6 items-center justify-center rounded-full border border-text-secondary text-[10px] text-text-secondary'
-                                        }
-                                      >
-                                        {n}
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <div className="text-[10px] font-semibold tracking-widest text-text-secondary">MOOD</div>
-                              <div className="flex gap-1">
-                                {Array.from({ length: 10 }).map((_, i) => {
-                                  const n = i + 1;
-                                  const active = currentState.mood === n;
-                                  return (
-                                    <button
-                                      key={n}
-                                      type="button"
-                                      onClick={() => toggleSectionMoodRating(section.id, n)}
-                                      className="min-h-[32px] w-7"
-                                    >
-                                      <div
-                                        className={
-                                          active
-                                            ? 'mx-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-background'
-                                            : 'mx-auto flex h-6 w-6 items-center justify-center rounded-full border border-text-secondary text-[10px] text-text-secondary'
-                                        }
-                                      >
-                                        {n}
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="text-[10px] font-semibold tracking-widest text-text-secondary">CAUSE</div>
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                {causes.map((cause) => {
-                                  const selected = currentState.cause === cause;
-                                  return (
-                                    <button
-                                      key={cause}
-                                      type="button"
-                                      onClick={() => handleSelectSectionCause(section.id, cause)}
-                                      className={
-                                        selected
-                                          ? 'rounded-full border-2 border-primary bg-primary/10 px-3 py-1 text-[10px] font-semibold text-primary'
-                                          : 'rounded-full border border-text-secondary px-3 py-1 text-[10px] text-text-secondary'
-                                      }
-                                    >
-                                      {cause}
-                                    </button>
-                                  );
-                                })}
-                                {showAddCause[section.id] ? (
-                                  <div className="flex gap-1">
-                                    <input
-                                      type="text"
-                                      value={newCause}
-                                      onChange={(e) => setNewCause(e.target.value)}
-                                      placeholder="New cause"
-                                      className="min-h-[28px] rounded-full border border-text-secondary bg-background px-3 text-[10px] text-text-primary outline-none"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAddCauseForSection(section.id)}
-                                      className="rounded-full border border-primary px-3 py-1 text-[10px] font-semibold text-primary"
-                                    >
-                                      Add
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowAddCause((prev) => ({ ...prev, [section.id]: true }))}
-                                    className="rounded-full border border-text-secondary px-3 py-1 text-[10px] text-text-secondary"
-                                  >
-                                    + Add cause
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {canSave ? (
-                              <button
-                                type="button"
-                                onClick={() => handleSaveSectionMood(section.id, section.name)}
-                                className="min-h-[32px] w-full rounded-brand bg-primary text-sm font-bold text-background"
-                              >
-                                Save
-                              </button>
-                            ) : null}
-                          </div>
-                        );
-                      }
-
-                      return null;
-                    })()}
 
                     {isEditing ? (
                       <button
@@ -2304,18 +1985,6 @@ export default function LifeTab() {
           </div>
         </div>
       ) : null}
-      {/* Daily Note */}
-      <Card>
-        <div className="text-sm text-text-secondary mb-2">How did today actually go?</div>
-        <input
-          type="text"
-          value={dailyNote}
-          onChange={(e) => handleDailyNoteChange(e.target.value)}
-          onBlur={handleDailyNoteBlur}
-          placeholder="One line is enough."
-          className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
-        />
-      </Card>
     </>
     </DndContext>
   );
