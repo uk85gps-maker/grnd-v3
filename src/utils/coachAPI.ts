@@ -63,15 +63,15 @@ export async function sendMessageToCoach(
         })()
       : false;
 
-    if (medicalActive) {
-      const blockMatch = responseText.match(/<BLOOD_RESULTS>([\s\S]*?)<\/BLOOD_RESULTS>/);
-      if (blockMatch) {
+    const blockMatch = responseText.match(/<BLOOD_RESULTS>([\s\S]*?)<\/BLOOD_RESULTS>/);
+    if (blockMatch) {
+      if (medicalActive) {
         try {
           const parsed = JSON.parse(blockMatch[1].trim()) as { markers: Array<{ name: string; value: number; unit: string; date: string; optimalMin: number; optimalMax: number; normalMin: number; normalMax: number; tier: 1 | 2 }>; testDate: string };
           mergeBloodResults(parsed.markers, parsed.testDate);
         } catch { /* malformed block — ignore, still strip */ }
-        responseText = responseText.replace(/<BLOOD_RESULTS>[\s\S]*?<\/BLOOD_RESULTS>/, '').trim();
       }
+      responseText = responseText.replace(/<BLOOD_RESULTS>[\s\S]*?<\/BLOOD_RESULTS>/, '').trim();
     }
 
     return responseText;
