@@ -28,6 +28,14 @@ function formatDuration(minutes: number) {
   return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
+function getBFStatus(bf: number | null): { colour: string; tint: string } | null {
+  if (bf === null) return null;
+  if (bf >= 25) return { colour: '#ef4444', tint: 'rgba(239,68,68,0.12)' };
+  if (bf >= 20) return { colour: '#f97316', tint: 'rgba(249,115,22,0.12)' };
+  if (bf >= 15) return { colour: '#eab308', tint: 'rgba(234,179,8,0.12)' };
+  return { colour: '#22c55e', tint: 'rgba(34,197,94,0.12)' };
+}
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4">
@@ -401,7 +409,8 @@ export default function LifeTab() {
     // Checklist %
     const checklistPct = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
 
-    return { weightDisplay, weightDiff, bfDisplay, bfDiff, gymThisWeek, sleepEnergyDisplay, sleepLogged, checklistPct };
+    const bfValue = latestBf ? latestBf.bodyFat! : null;
+    return { weightDisplay, weightDiff, bfDisplay, bfDiff, bfValue, gymThisWeek, sleepEnergyDisplay, sleepLogged, checklistPct };
   }, [sleepSaved, checkedCount, totalCount]);
 
   const weeklyItems = useMemo(() => weeklySection?.items || [], [weeklySection]);
@@ -1117,9 +1126,9 @@ export default function LifeTab() {
             </div>
           </div>
 
-          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3">
+          <div className="w-[160px] shrink-0 rounded-brand bg-card p-3" style={getBFStatus(statCards.bfValue) ? { backgroundColor: getBFStatus(statCards.bfValue)!.tint } : undefined}>
             <div className="text-[11px] tracking-widest text-text-secondary">BODY FAT</div>
-            <div className="mt-1 text-lg font-bold text-text-primary">{statCards.bfDisplay}</div>
+            <div className="mt-1 text-lg font-bold" style={getBFStatus(statCards.bfValue) ? { color: getBFStatus(statCards.bfValue)!.colour } : undefined}>{statCards.bfDisplay}</div>
             <div className="mt-1 flex items-center gap-1 text-sm">
               {statCards.bfDiff === null ? (
                 <span className="text-text-secondary">no data</span>
