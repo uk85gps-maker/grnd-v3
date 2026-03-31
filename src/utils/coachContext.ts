@@ -672,8 +672,10 @@ export function getCoachContext(): {
     // Populated by: Today tab - macro tracking (Phase 3b Step 4)
     // Updated: First checks grnd_food_log (DailyFoodLog shape), falls back to grnd_macro_log (MacroLogEntry[] shape)
     macros: (() => {
-      const macroLogs: Array<{ date: string; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number; fibre: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
+      const macroLogs: Array<{ date: string; logged: boolean; entries: MacroLogEntry[]; totals: { calories: number; protein: number; carbs: number; fat: number; fibre: number }; targets: { calories: number; protein: number; carbs: number; fat: number }; deviation?: string }> = [];
       const today = new Date();
+      const defaultTargets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
+      const zeroTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 };
 
       for (let i = 0; i < 7; i++) {
         const checkDate = new Date(today);
@@ -703,7 +705,7 @@ export function getCoachContext(): {
             );
 
             const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
-            let targets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
+            let targets = { ...defaultTargets };
             if (targetsRaw) {
               try {
                 targets = JSON.parse(targetsRaw);
@@ -720,9 +722,10 @@ export function getCoachContext(): {
               deviation = calDiff > 0 ? 'Over target by 10-20%' : 'Under target by 10-20%';
             }
 
-            macroLogs.push({ date: dayKey, entries: [], totals, targets, deviation });
+            macroLogs.push({ date: dayKey, logged: true, entries: [], totals, targets, deviation });
           } catch {
-            // Skip invalid entries
+            // Key existed but data was corrupt — logged: true, zeroed totals
+            macroLogs.push({ date: dayKey, logged: true, entries: [], totals: { ...zeroTotals }, targets: { ...defaultTargets } });
           }
         } else {
           // Fallback: grnd_macro_log_{dateKey} — old MacroLogEntry[] shape
@@ -744,7 +747,7 @@ export function getCoachContext(): {
               );
 
               const targetsRaw = localStorage.getItem(STORAGE_KEYS.MACRO_TARGETS);
-              let targets = { calories: 1435, protein: 116.5, carbs: 102.2, fat: 57.9 };
+              let targets = { ...defaultTargets };
               if (targetsRaw) {
                 try {
                   targets = JSON.parse(targetsRaw);
@@ -761,10 +764,14 @@ export function getCoachContext(): {
                 deviation = calDiff > 0 ? 'Over target by 10-20%' : 'Under target by 10-20%';
               }
 
-              macroLogs.push({ date: dayKey, entries, totals, targets, deviation });
+              macroLogs.push({ date: dayKey, logged: true, entries, totals, targets, deviation });
             } catch {
-              // Skip invalid entries
+              // Key existed but data was corrupt — logged: true, zeroed totals
+              macroLogs.push({ date: dayKey, logged: true, entries: [], totals: { ...zeroTotals }, targets: { ...defaultTargets } });
             }
+          } else {
+            // Both keys absent — no interaction with food tab this day
+            macroLogs.push({ date: dayKey, logged: false, entries: [], totals: { ...zeroTotals }, targets: { ...defaultTargets } });
           }
         }
       }
@@ -775,6 +782,8 @@ export function getCoachContext(): {
     food: (() => {
       const last7Days: Array<{
         date: string;
+        logged: boolean;
+        mealCount: number;
         onPlanCount: number;
         deviationCount: number;
         skippedCount: number;
@@ -801,6 +810,7 @@ export function getCoachContext(): {
         if (raw) {
           try {
             const log = JSON.parse(raw);
+            const mealCount = log.meals?.length ?? 0;
             const onPlanCount = log.meals?.filter((m: any) => m.status === 'plan').length || 0;
             const deviationCount = log.meals?.filter((m: any) => m.status === 'deviation').length || 0;
             const skippedCount = log.meals?.filter((m: any) => m.status === 'skipped').length || 0;
@@ -817,6 +827,8 @@ export function getCoachContext(): {
 
             last7Days.push({
               date: dayKey,
+              logged: true,
+              mealCount,
               onPlanCount,
               deviationCount,
               skippedCount,
@@ -825,8 +837,11 @@ export function getCoachContext(): {
               dailyTotals: log.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           } catch {
+            // Key existed but data was corrupt — logged: true
             last7Days.push({
               date: dayKey,
+              logged: true,
+              mealCount: 0,
               onPlanCount: 0,
               deviationCount: 0,
               skippedCount: 0,
@@ -851,9 +866,11 @@ export function getCoachContext(): {
                 }),
                 { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 }
               );
-              
+
               last7Days.push({
                 date: dayKey,
+                logged: true,
+                mealCount: confirmed.length,
                 onPlanCount: confirmed.length,
                 deviationCount: 0,
                 skippedCount: 0,
@@ -862,8 +879,11 @@ export function getCoachContext(): {
                 dailyTotals,
               });
             } catch {
+              // Key existed but data was corrupt — logged: true
               last7Days.push({
                 date: dayKey,
+                logged: true,
+                mealCount: 0,
                 onPlanCount: 0,
                 deviationCount: 0,
                 skippedCount: 0,
@@ -873,8 +893,11 @@ export function getCoachContext(): {
               });
             }
           } else {
+            // Both keys absent — no interaction with food tab this day
             last7Days.push({
               date: dayKey,
+              logged: false,
+              mealCount: 0,
               onPlanCount: 0,
               deviationCount: 0,
               skippedCount: 0,
