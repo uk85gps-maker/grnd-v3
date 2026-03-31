@@ -1147,18 +1147,32 @@ export function getCoachContext(): {
       const snap = compliance;
 
       const foundationItems = ['sleep', 'macros', 'checklist'];
-      const streamKeys = ['checklist', 'sleep', 'mood', 'gym', 'macros'] as const;
+      const streamKeys = ['checklist', 'sleep', 'mood', 'gym', 'macros', 'body', 'specialists', 'field'] as const;
+
+      const observationText: Record<string, (value: number | string) => string> = {
+        'Checklist': (v) => `Checklist completion is at ${v}%`,
+        'Sleep': (v) => `Sleep logged ${v} hours average`,
+        'Mood': (v) => `Mood and energy — ${v}`,
+        'Gym': (v) => `Gym sessions this week: ${v}`,
+        'Macros': (v) => `Macros at ${v}% of target`,
+        'Body Stats': (v) => `Body stats last logged ${v} days ago`,
+        'Specialists': (v) => `${v} specialist actions overdue`,
+        'Field Actions': (v) => `Field actions — ${v}`,
+      };
 
       streamKeys.forEach(key => {
         const stream = snap[key];
         if (!stream) return;
 
         if (stream.status === 'red' || stream.status === 'amber') {
+          const obs = observationText[stream.name]
+            ? observationText[stream.name](stream.value)
+            : `${stream.name} is ${stream.status} — ${stream.value}`;
           signals.push({
             exists: true,
             item: stream.name,
-            observation: `${stream.name} is ${stream.status} — ${stream.value}`,
-            daysCount: 0,
+            observation: obs,
+            daysCount: typeof stream.value === 'number' ? stream.value : 0,
             layer: foundationItems.includes(key) ? 'foundation' : 'tracking',
             threshold: stream.status === 'red' ? 1 : 0.6,
           });
