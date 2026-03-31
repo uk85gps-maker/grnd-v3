@@ -55,7 +55,8 @@ export async function sendMessageToCoach(
       ? (() => {
           try {
             const modes = JSON.parse(modesRaw) as Array<{ name: string; active: boolean }>;
-            return modes.some((m) => m.name.toLowerCase().includes('medical') && m.active);
+            console.log('[coachAPI] grnd_coach_modes parsed:', modes);
+            return modes.some((m) => m.name.toLowerCase().includes('medical') && (m.active === true || (m as any).isActive === true));
           } catch {
             return false;
           }
