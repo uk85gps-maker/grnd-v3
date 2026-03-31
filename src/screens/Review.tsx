@@ -17,7 +17,7 @@ import {
   savePeerComparison,
 } from '../utils/reviewData';
 import { getGymSessions } from '../utils/gymStructure';
-import { getComplianceSnapshot, getCoachContext, SpecialistAction, STORAGE_KEYS } from '../utils/coachContext';
+import { getComplianceSnapshot, getCoachContext, SpecialistAction, STORAGE_KEYS, getMilestones, MilestoneEntry } from '../utils/coachContext';
 import { addPatternEntry } from '../utils/patternMemory';
 
 type StreamStatus = 'green' | 'amber' | 'red' | 'grey';
@@ -55,6 +55,8 @@ export default function Review() {
   const [weeklyReviewLoading, setWeeklyReviewLoading] = useState(false);
   const [weeklyReviewStatus, setWeeklyReviewStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [weeklyReviewError, setWeeklyReviewError] = useState('');
+
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
 
   const [specialists, setSpecialists] = useState<SpecialistAction[]>([]);
   const [showSpecialistModal, setShowSpecialistModal] = useState(false);
@@ -177,6 +179,7 @@ export default function Review() {
     setLatestStats(getLatestBodyStats());
     setBloodResults(getBloodResults());
     setGymSessions(getGymSessions());
+    setMilestones(getMilestones());
 
     const existing = localStorage.getItem(STORAGE_KEYS.SPECIALIST_ACTIONS);
     if (!existing) {
@@ -547,7 +550,39 @@ export default function Review() {
         </div>
       </div>
 
-      {/* 2. Pyramid Status */}
+      {/* 2. Identity Milestones */}
+      <div>
+        <div className="mb-3 text-sm font-semibold tracking-widest text-text-secondary">IDENTITY MILESTONES</div>
+
+        {milestones.length === 0 ? (
+          <div className="rounded-2xl border border-[#2a2a2a] bg-[#141414] p-4 text-center text-sm text-zinc-400">
+            Milestones appear when you hold a stream green for 7, 14, or 30 days.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {[...milestones]
+              .sort((a, b) => b.achievedDate.localeCompare(a.achievedDate))
+              .map((m) => {
+                const [y, mo, d] = m.achievedDate.split('-');
+                const dateObj = new Date(Number(y), Number(mo) - 1, Number(d));
+                const formatted = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                return (
+                  <div key={m.id} className="rounded-2xl border border-[#d4af37] bg-[#141414] p-4">
+                    <div className="text-base font-semibold text-[#d4af37]">{m.label}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="rounded-full bg-[#2a2a2a] px-2 py-0.5 text-[10px] tracking-widest text-zinc-400">
+                        {m.stream.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-zinc-500">{formatted}</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Pyramid Status */}
       <div>
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm font-semibold tracking-widest text-text-secondary">PYRAMID STATUS</div>

@@ -147,6 +147,198 @@ export interface PrioritySignal {
   threshold: number;
 }
 
+export interface MilestoneEntry {
+  id: string;
+  label: string;
+  stream: string;
+  achievedDate: string;
+  metric: string;
+  value: number;
+  threshold: number;
+}
+
+export function getMilestones(): MilestoneEntry[] {
+  const raw = localStorage.getItem(STORAGE_KEYS.MILESTONES);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as MilestoneEntry[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveMilestones(entries: MilestoneEntry[]): void {
+  localStorage.setItem(STORAGE_KEYS.MILESTONES, JSON.stringify(entries));
+}
+
+export function checkAndAwardMilestones(): void {
+  const existing = getMilestones();
+  const existingIds = new Set(existing.map((m) => m.id));
+  const toAdd: MilestoneEntry[] = [];
+  const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+
+  // Helper: get YYYY-MM-DD key for N days ago
+  function dayKeyOffset(daysAgo: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    return d.toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' });
+  }
+
+  // Helper: award once per id
+  function award(entry: MilestoneEntry) {
+    if (!existingIds.has(entry.id)) {
+      existingIds.add(entry.id);
+      toAdd.push(entry);
+    }
+  }
+
+  // --- Checklist: consecutive days >= 80% completion ---
+  {
+    const structureRaw = localStorage.getItem(STORAGE_KEYS.CHECKLIST_STRUCTURE);
+    if (structureRaw) {
+      try {
+        type SectionNode = { items?: Array<unknown>; sections?: SectionNode[] };
+        function countItems(sections: SectionNode[]): number {
+          return sections.reduce((acc, s) =>
+            acc + (s.items?.length ?? 0) + (s.sections ? countItems(s.sections) : 0), 0);
+        }
+        const structure = JSON.parse(structureRaw) as SectionNode[];
+        const totalItems = countItems(structure);
+        if (totalItems > 0) {
+          let streak = 0;
+          for (let i = 0; i < 30; i++) {
+            const dk = dayKeyOffset(i);
+            const cr = localStorage.getItem(`${STORAGE_KEYS.CHECKLIST_COMPLETION}_${dk}`);
+            if (!cr) break;
+            const completion = JSON.parse(cr) as { completedIds?: string[] };
+            const pct = Math.min(100, Math.round(((completion.completedIds?.length || 0) / totalItems) * 100));
+            if (pct >= 80) streak++; else break;
+          }
+          for (const days of [7, 14, 30]) {
+            if (streak >= days) {
+              award({ id: `checklist-${days}days-${todayKey}`, label: `${days}-day checklist streak`, stream: 'Checklist', achievedDate: todayKey, metric: 'consecutive days ≥80%', value: streak, threshold: days });
+            }
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // --- Sleep: consecutive days with sleep logged ---
+  {
+    let streak = 0;
+    for (let i = 0; i < 30; i++) {
+      const dk = dayKeyOffset(i);
+      const raw = localStorage.getItem(`${STORAGE_KEYS.SLEEP_LOG}_${dk}`);
+      if (!raw) break;
+      try {
+        const entry = JSON.parse(raw) as { bedTime?: string; wakeTime?: string };
+        if (entry.bedTime && entry.wakeTime) streak++; else break;
+      } catch { break; }
+    }
+    for (const days of [7, 14, 30]) {
+      if (streak >= days) {
+        award({ id: `sleep-${days}days-${todayKey}`, label: `${days}-day sleep logging streak`, stream: 'Sleep', achievedDate: todayKey, metric: 'consecutive days logged', value: streak, threshold: days });
+      }
+    }
+  }
+
+  // --- Gym: consecutive weeks with 3+ sessions ---
+  {
+    const raw = localStorage.getItem(STORAGE_KEYS.GYM_LOG);
+    if (raw) {
+      try {
+        const sessions = JSON.parse(raw) as Array<{ date: string; dayType?: string }>;
+        let consecutiveWeeks = 0;
+        for (let w = 0; w < 4; w++) {
+          const weekStart = new Date();
+          weekStart.setDate(weekStart.getDate() - (w + 1) * 7);
+          const weekEnd = new Date();
+          weekEnd.setDate(weekEnd.getDate() - w * 7);
+          const wsStr = weekStart.toISOString().slice(0, 10);
+          const weStr = weekEnd.toISOString().slice(0, 10);
+          const count = sessions.filter((s) => s.date >= wsStr && s.date < weStr && s.dayType?.toLowerCase() !== 'rest').length;
+          if (count >= 3) consecutiveWeeks++; else break;
+        }
+        for (const weeks of [1, 2, 4]) {
+          if (consecutiveWeeks >= weeks) {
+            award({ id: `gym-${weeks}weeks-${todayKey}`, label: `${weeks} consecutive week${weeks > 1 ? 's' : ''} with 3+ gym sessions`, stream: 'Gym', achievedDate: todayKey, metric: 'consecutive weeks 3+ sessions', value: consecutiveWeeks, threshold: weeks });
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // --- Macros: consecutive days with food logged ---
+  {
+    let streak = 0;
+    for (let i = 0; i < 30; i++) {
+      const dk = dayKeyOffset(i);
+      const foodRaw = localStorage.getItem(`${STORAGE_KEYS.FOOD_LOG}_${dk}`);
+      const macroRaw = localStorage.getItem(`${STORAGE_KEYS.MACRO_LOG}_${dk}`);
+      if (foodRaw || macroRaw) streak++; else break;
+    }
+    for (const days of [7, 14, 30]) {
+      if (streak >= days) {
+        award({ id: `macros-${days}days-${todayKey}`, label: `${days}-day food logging streak`, stream: 'Macros', achievedDate: todayKey, metric: 'consecutive days logged', value: streak, threshold: days });
+      }
+    }
+  }
+
+  // --- Body: weight target milestones ---
+  {
+    const raw = localStorage.getItem(STORAGE_KEYS.BODY_LOG);
+    if (raw) {
+      try {
+        const log = JSON.parse(raw) as Array<{ date: string; weight?: number }>;
+        const withWeight = log.filter((e) => e.weight != null).sort((a, b) => b.date.localeCompare(a.date));
+        if (withWeight.length > 0) {
+          const latest = withWeight[0].weight as number;
+          for (const target of [82, 80, 78, 75]) {
+            if (latest < target) {
+              award({ id: `body-below${target}kg-${todayKey}`, label: `Weight below ${target}kg`, stream: 'Body Stats', achievedDate: todayKey, metric: 'kg', value: latest, threshold: target });
+            }
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // --- Field: total outcomes count milestones ---
+  {
+    const raw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
+    if (raw) {
+      try {
+        const outcomes = JSON.parse(raw) as Array<unknown>;
+        const total = outcomes.length;
+        for (const count of [5, 10, 25]) {
+          if (total >= count) {
+            award({ id: `field-${count}outcomes-${todayKey}`, label: `${count} field outcomes logged`, stream: 'Field Actions', achievedDate: todayKey, metric: 'total outcomes', value: total, threshold: count });
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  // --- Phase Mode: survived a phase ---
+  {
+    const raw = localStorage.getItem('grnd_phase_history');
+    if (raw) {
+      try {
+        const history = JSON.parse(raw) as Array<{ endDate: string | null }>;
+        const survived = history.some((e) => e.endDate !== null);
+        if (survived) {
+          award({ id: `phase-survived-first`, label: 'Survived a phase', stream: 'Phase Mode', achievedDate: todayKey, metric: 'phases completed', value: 1, threshold: 1 });
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  if (toAdd.length > 0) {
+    saveMilestones([...existing, ...toAdd]);
+  }
+}
+
 // Compliance Snapshot Function
 // Returns current compliance status across all data streams
 export function getComplianceSnapshot(): {
@@ -447,6 +639,7 @@ export function getCoachContext(): {
   };
 } {
   const compliance = getComplianceSnapshot();
+  checkAndAwardMilestones();
 
   // Load last 7 days of mood logs (array structure)
   const moodLogs: Array<{ date: string; entries: MoodLogEntry[] }> = [];
