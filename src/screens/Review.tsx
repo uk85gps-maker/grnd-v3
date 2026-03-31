@@ -132,9 +132,21 @@ export default function Review() {
         if (protValues.length > 0) avgProtein = Math.round(protValues.reduce((a: number, b: number) => a + b, 0) / protValues.length);
       }
 
-      const gymSessionCount = typeof context.gym?.totalSessionsLast30Days === 'number'
-        ? Math.round(context.gym.totalSessionsLast30Days / 4)
-        : null;
+      const gymSessionCount: number = (() => {
+        try {
+          const raw = localStorage.getItem('grnd_gym_log');
+          if (!raw) return 0;
+          const sessions = JSON.parse(raw) as Array<{ date: string }>;
+          const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
+          const sevenDaysAgo = new Date(nowSydney);
+          sevenDaysAgo.setDate(nowSydney.getDate() - 7);
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+          const todayStr = nowSydney.toISOString().slice(0, 10);
+          return sessions.filter((s) => s.date >= sevenDaysAgoStr && s.date <= todayStr).length;
+        } catch {
+          return 0;
+        }
+      })();
 
       let avgSleepHours: number | null = null;
       if (Array.isArray(context.sleep) && context.sleep.length > 0) {
@@ -232,14 +244,53 @@ export default function Review() {
       return 0;
     };
 
+    const fieldScore = (() => {
+      try {
+        const raw = localStorage.getItem('grnd_field_log');
+        if (!raw) return 0;
+        const entries = JSON.parse(raw) as Array<{ date?: string; timestamp?: string }>;
+        const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
+        const sevenDaysAgo = new Date(nowSydney);
+        sevenDaysAgo.setDate(nowSydney.getDate() - 7);
+        const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+        const todayStr = nowSydney.toISOString().slice(0, 10);
+        const count = entries.filter((e) => {
+          const d = e.date ?? (e.timestamp ? e.timestamp.slice(0, 10) : null);
+          return d != null && d >= sevenDaysAgoStr && d <= todayStr;
+        }).length;
+        return count === 0 ? 0 : count === 1 ? 50 : 100;
+      } catch {
+        return 0;
+      }
+    })();
+
+    const meaningScore = (() => {
+      try {
+        const raw = localStorage.getItem('grnd_checklist_structure');
+        if (!raw) return 0;
+        const sections = JSON.parse(raw) as Array<{ items?: Array<{ purpose?: string }> }>;
+        let total = 0;
+        let withPurpose = 0;
+        for (const section of sections) {
+          for (const item of section.items ?? []) {
+            total++;
+            if (item.purpose && item.purpose.trim().length > 0) withPurpose++;
+          }
+        }
+        return total === 0 ? 0 : Math.round((withPurpose / total) * 100);
+      } catch {
+        return 0;
+      }
+    })();
+
     let totalScore = 0;
     totalScore += statusToScore(complianceSnapshot.checklist?.status) * weights.checklist;
     totalScore += statusToScore(complianceSnapshot.mood?.status) * weights.mood;
     totalScore += statusToScore(complianceSnapshot.sleep?.status) * weights.sleep;
     totalScore += statusToScore(complianceSnapshot.macros?.status) * weights.macros;
     totalScore += statusToScore(complianceSnapshot.gym?.status) * weights.gym;
-    totalScore += 0 * weights.field;
-    totalScore += 0 * weights.meaning;
+    totalScore += fieldScore * weights.field;
+    totalScore += meaningScore * weights.meaning;
     totalScore += (latestStats ? 100 : 0) * weights.body;
 
     return Math.round(totalScore);

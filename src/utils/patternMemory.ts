@@ -60,6 +60,16 @@ export function formatPatternMemoryForPrompt(): string {
   if (patterns.length === 0) return 'No pattern history yet.';
 
   return patterns
-    .map((p) => `Week of ${p.weekStart}:\n${p.summary}`)
+    .map((p) => {
+      const lines = [`Week of ${p.weekStart}:`];
+      if (p.avgCalories != null) lines.push(`Avg calories: ${Math.round(p.avgCalories)}`);
+      if (p.avgProtein != null) lines.push(`Avg protein: ${Math.round(p.avgProtein)}g`);
+      if (p.gymSessionCount != null) lines.push(`Gym sessions: ${p.gymSessionCount}`);
+      if (p.avgSleepHours != null) lines.push(`Avg sleep: ${p.avgSleepHours.toFixed(1)}h`);
+      if (p.complianceScore != null) lines.push(`System health: ${Math.round(p.complianceScore)}`);
+      if (p.bodyWeight != null) lines.push(`Weight: ${p.bodyWeight}kg`);
+      lines.push(p.summary);
+      return lines.join('\n');
+    })
     .join('\n\n');
 }
