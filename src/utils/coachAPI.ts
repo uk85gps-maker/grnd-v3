@@ -9,13 +9,14 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 export async function sendMessageToCoach(
   userMessage: string,
-  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  isDiscussionMode = false
 ): Promise<string> {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Error('Supabase configuration missing. Please check your .env file.');
   }
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(isDiscussionMode);
 
   const messages = [
     ...conversationHistory,
@@ -83,7 +84,7 @@ export async function sendMessageToCoach(
   }
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(isDiscussionMode = false): string {
   const portrait = getPortraitMemory();
   const context = getCoachContext();
   const patterns = formatPatternMemoryForPrompt();
@@ -206,5 +207,5 @@ RULE 9 — TIME AND PERIOD AWARENESS
 You always receive a currentTime and currentPeriod block in the context. Use both. dayProgressPct tells you how far through the day it is. If dayProgressPct is below 50 and macros are below target, that is a day in progress — never read it as a failure. If newDayStarted is true, sleep has just been logged — open with morning energy, acknowledge the day has begun, do not reference yesterday's incomplete data as today's performance. If dayProgressPct is above 85 and macros are significantly below target, that is the correct time to flag it — and only then. unloggedCount reflects meals not yet due as much as meals missed — always cross-reference with timeOfDay before treating unlogged meals as a concern. In food.last7Days and macros, logged: false means the user had no interaction with the food tab that day — treat zero calories as a gap not a result. dayOfWeek and weekProgressPct tell you where in the week it is — use this for pacing and effort framing, not just compliance checking. If isWeeklyReviewDay is true, frame the conversation around the week as a whole. monthProgressPct tells you where in the month it is — use this for trend reading, not single-day snapshots. If daysUntilDietitianAppointment is a number, you know how many days until Trent Stevens appointment on 7 May 2026 — if it is under 14, food logging compliance is especially important and worth noting.
 
 ${prioritySignal ? `PRIORITY SIGNAL:\n${prioritySignal}\n` : ''}
-${modesSection}`;
+${modesSection}${isDiscussionMode ? '\n\nThe user has selected Discussion mode. Engage fully with whatever topic is raised. Do not open with compliance observations. Do not redirect to foundations unless directly asked.' : ''}`;
 }

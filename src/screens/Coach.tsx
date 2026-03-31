@@ -108,6 +108,7 @@ export default function Coach() {
     desiredOutcome: '',
   });
   const [modeToast, setModeToast] = useState(false);
+  const [isDiscussionMode, setIsDiscussionMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Library state
@@ -146,6 +147,10 @@ export default function Coach() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    return () => { setIsDiscussionMode(false); };
+  }, []);
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
@@ -166,7 +171,7 @@ export default function Coach() {
 
     try {
       const conversationForAPI = formatMessagesForAPI();
-      const response = await sendMessageToCoach(userMessage, conversationForAPI);
+      const response = await sendMessageToCoach(userMessage, conversationForAPI, isDiscussionMode);
 
       // Add assistant response
       const assistantMessage: Message = {
@@ -512,8 +517,34 @@ export default function Coach() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Coach / Discussion Toggle */}
+      <div className="mt-4 flex rounded-brand border border-[#2a2a2a] bg-[#141414] p-1">
+        <button
+          type="button"
+          onClick={() => setIsDiscussionMode(false)}
+          className={`flex-1 rounded-[6px] py-2 text-sm font-semibold transition-colors ${
+            !isDiscussionMode
+              ? 'bg-[#2a2a2a] text-white'
+              : 'text-text-secondary'
+          }`}
+        >
+          Coach
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsDiscussionMode(true)}
+          className={`flex-1 rounded-[6px] py-2 text-sm font-semibold transition-colors ${
+            isDiscussionMode
+              ? 'bg-[#2a2a2a] text-white'
+              : 'text-text-secondary'
+          }`}
+        >
+          Discussion
+        </button>
+      </div>
+
       {/* Input Area */}
-      <div className="mt-4 flex gap-2">
+      <div className="mt-2 flex gap-2">
         <input
           type="text"
           value={inputValue}
