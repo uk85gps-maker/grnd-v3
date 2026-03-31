@@ -18,7 +18,7 @@ import {
 } from '../utils/reviewData';
 import { getGymSessions } from '../utils/gymStructure';
 import { getComplianceSnapshot, getCoachContext, SpecialistAction, STORAGE_KEYS, getMilestones, MilestoneEntry } from '../utils/coachContext';
-import { addPatternEntry } from '../utils/patternMemory';
+import { addPatternEntry, getPatternMemory } from '../utils/patternMemory';
 
 type StreamStatus = 'green' | 'amber' | 'red' | 'grey';
 
@@ -193,6 +193,22 @@ export default function Review() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!isSunday) return;
+    if (!latestStats) return;
+    const currentMondayKey = (() => {
+      const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
+      const dayOfWeek = nowSydney.getDay();
+      const monday = new Date(nowSydney);
+      monday.setDate(nowSydney.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      return monday.toISOString().split('T')[0];
+    })();
+    const patterns = getPatternMemory();
+    const alreadyRun = patterns.some(p => p.weekStart === currentMondayKey);
+    if (alreadyRun) return;
+    handleWeeklyReview();
+  }, [isSunday, latestStats]);
 
   const complianceSnapshot = useMemo(() => getComplianceSnapshot(), []);
 
