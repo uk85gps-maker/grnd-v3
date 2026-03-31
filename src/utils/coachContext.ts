@@ -376,10 +376,12 @@ export function getComplianceSnapshot(): {
 
   return {
     checklist: (() => {
-      type SectionNode = { items?: Array<unknown>; sections?: SectionNode[] };
+      type SectionNode = { id?: string; items?: Array<unknown>; sections?: SectionNode[] };
       function countItems(sections: SectionNode[]): number {
-        return sections.reduce((acc, s) =>
-          acc + (s.items?.length ?? 0) + (s.sections ? countItems(s.sections) : 0), 0);
+        return sections
+          .filter(s => s.id !== 'weekly-environment')
+          .reduce((acc, s) =>
+            acc + (s.items?.length ?? 0) + (s.sections ? countItems(s.sections) : 0), 0);
       }
       try {
         const structureRaw = localStorage.getItem(STORAGE_KEYS.CHECKLIST_STRUCTURE);

@@ -304,34 +304,21 @@ export default function LifeTab() {
         const parsed = JSON.parse(raw) as DailyCompletion;
         let ids = parsed.completedIds ?? [];
 
-        // Check if it's Monday and reset weekly items
-        const now = new Date();
-        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
-        const hour = now.getHours();
-        const minute = now.getMinutes();
-
-        // If it's Monday at or after 4:30am, clear weekly item completions
-        if (dayOfWeek === 1 && (hour > 4 || (hour === 4 && minute >= 30))) {
-          const lastResetKey = 'grnd_weekly_last_reset';
-          const lastReset = localStorage.getItem(lastResetKey);
-          const currentWeekStart = new Date(now);
-          currentWeekStart.setHours(4, 30, 0, 0);
-          currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay() + 1); // Monday
-
-          // Only reset if we haven't reset this week yet
-          if (!lastReset || new Date(lastReset) < currentWeekStart) {
-            // Filter out weekly item IDs - get from sections directly
-            const weeklySection = sections.find(s => s.id === 'weekly-environment');
-            const weeklyItemIds = weeklySection?.items.map(item => item.id) || [];
-            ids = ids.filter(id => !weeklyItemIds.includes(id));
-
-            // Save the reset timestamp
-            localStorage.setItem(lastResetKey, currentWeekStart.toISOString());
-
-            // Update storage with filtered IDs
-            const updatedCompletion: DailyCompletion = { completedIds: ids };
-            localStorage.setItem(completionKey, JSON.stringify(updatedCompletion));
-          }
+        // Weekly reset — Sydney timezone, fires on every app open
+        const lastResetKey = 'grnd_weekly_last_reset';
+        const lastReset = localStorage.getItem(lastResetKey);
+        const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
+        const sydneyDayOfWeek = nowSydney.getDay();
+        const currentMondaySydney = new Date(nowSydney);
+        currentMondaySydney.setDate(nowSydney.getDate() - (sydneyDayOfWeek === 0 ? 6 : sydneyDayOfWeek - 1));
+        currentMondaySydney.setHours(4, 30, 0, 0);
+        if (!lastReset || new Date(lastReset) < currentMondaySydney) {
+          const weeklySection = sections.find(s => s.id === 'weekly-environment');
+          const weeklyItemIds = weeklySection?.items.map(item => item.id) || [];
+          ids = ids.filter(id => !weeklyItemIds.includes(id));
+          localStorage.setItem(lastResetKey, currentMondaySydney.toISOString());
+          const updatedCompletion: DailyCompletion = { completedIds: ids };
+          localStorage.setItem(completionKey, JSON.stringify(updatedCompletion));
         }
 
         setCompletedIds(ids);
@@ -1340,7 +1327,7 @@ export default function LifeTab() {
       </Card>
 
       {/* Weekly Environment Checklist */}
-      {weeklySection && (
+      {weeklySection && weeklyItems.length > 0 && weeklyCheckedCount < weeklyItems.length && (
         <Card>
           <button
             type="button"
@@ -1350,9 +1337,6 @@ export default function LifeTab() {
             <div className="flex items-center gap-2">
               <span className="text-lg">{weeklySection.emoji}</span>
               <span className="text-lg font-bold text-white">🏠 Weekly Environment</span>
-              {weeklyCheckedCount === weeklyItems.length && weeklyItems.length > 0 && (
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-              )}
             </div>
             <div className="flex items-center gap-2">
               <div className="text-base text-text-secondary">
@@ -1372,9 +1356,11 @@ export default function LifeTab() {
 
           {weeklyExpanded && (
             <div className="mt-3 space-y-2">
-              <SortableContext items={weeklyItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-              {weeklyItems.map((item) => {
-                const checked = completedIds.includes(item.id);
+              <div className="mb-2 text-sm text-text-secondary">
+                {weeklyCheckedCount} / {weeklyItems.length} done
+              </div>
+              <SortableContext items={weeklyItems.filter(i => !completedIds.includes(i.id)).map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              {weeklyItems.filter(item => !completedIds.includes(item.id)).map((item) => {
                 const isEditing = editingSection === weeklySection.id;
 
                 return (
@@ -1403,15 +1389,11 @@ export default function LifeTab() {
                           <button
                             type="button"
                             onClick={() => handleToggleItem(item.id)}
-                            className={
-                              checked
-                                ? 'w-full rounded-brand bg-card/60 px-3 py-3'
-                                : 'w-full rounded-brand bg-card px-3 py-3'
-                            }
+                            className="w-full rounded-brand bg-card px-3 py-3"
                           >
                             <div className="flex items-start gap-3">
                               <div className="mt-1 shrink-0">
-                                <Checkbox checked={checked} />
+                                <Checkbox checked={false} />
                               </div>
                               <div className="flex-1 text-left">
                                 <span
@@ -1419,11 +1401,7 @@ export default function LifeTab() {
                                     e.stopPropagation();
                                     setDetailItem(item);
                                   }}
-                                  className={
-                                    checked
-                                      ? 'text-base text-text-secondary line-through cursor-pointer'
-                                      : 'text-base text-text-primary cursor-pointer'
-                                  }
+                                  className="text-base text-text-primary cursor-pointer"
                                 >
                                   {item.name}
                                 </span>
