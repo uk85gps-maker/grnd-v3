@@ -24,6 +24,23 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
+const PROTOCOL_GROUPS = [
+  { name: 'Pre-Gym',          start: '04:00', end: '07:29' },
+  { name: 'Work Morning',     start: '07:30', end: '11:59' },
+  { name: 'Work Afternoon',   start: '12:00', end: '15:59' },
+  { name: 'After Work',       start: '16:00', end: '19:59' },
+  { name: 'Bedtime',          start: '20:00', end: '23:59' },
+];
+
+const GROUP_ORDER = ['Pre-Gym', 'Work Morning', 'Work Afternoon', 'After Work', 'Bedtime', 'Other'];
+
+function getMealGroup(time: string): string {
+  for (const g of PROTOCOL_GROUPS) {
+    if (time >= g.start && time <= g.end) return g.name;
+  }
+  return 'Other';
+}
+
 export default function FoodTab() {
   const dayKey = useMemo(() => getGrndDayKey(), []);
   const yesterdayKey = useMemo(() => previousDayKey(dayKey), [dayKey]);
@@ -141,6 +158,18 @@ export default function FoodTab() {
       .filter((item) => item.type === 'supplement')
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [foodPlan]);
+
+  const groupedMeals = useMemo(() => {
+    const map: Record<string, typeof meals> = {};
+    for (const meal of meals) {
+      const g = getMealGroup(meal.time);
+      if (!map[g]) map[g] = [];
+      map[g].push(meal);
+    }
+    return GROUP_ORDER
+      .filter((g) => (map[g]?.length ?? 0) > 0)
+      .map((g) => ({ group: g, items: map[g] }));
+  }, [meals]);
 
   const getMealStatus = (mealId: string): MealLog | null => {
     return foodLog.meals.find((m) => (m as any).planItemId === mealId || m.id === mealId) || null;
@@ -758,122 +787,141 @@ export default function FoodTab() {
       {meals.length > 0 && (
         <Card>
           <div className="mb-3 text-lg font-bold text-white">🍽️ Meals</div>
-          <div className="space-y-3">
-            {meals.map((meal) => {
-              const mealLog = getMealStatus(meal.id);
-              const isLogged = mealLog?.status === 'plan' || mealLog?.status === 'deviation';
-              const isSkipped = mealLog?.status === 'skipped';
-              const variantIdx = selectedVariants[meal.id] ?? 0;
-              const activeVariant = meal.variants && meal.variants.length > 0 ? (meal.variants[variantIdx] ?? null) : null;
-              const displayName = isLogged ? (mealLog!.name || meal.name) : (activeVariant ? activeVariant.name : meal.name);
-              const displayMacros = (() => {
-                if (isLogged) {
-                  const m = mealLog!.macros;
-                  if (isKadaParshad(mealLog!.name || meal.name) && m.calories === 0) return KADA_PARSHAD_MACROS;
-                  return m;
-                }
-                if (activeVariant) return activeVariant.macros;
-                if (isKadaParshad(meal.name)) return KADA_PARSHAD_MACROS;
-                return meal.plannedMacros;
-              })();
-
+          <div className="space-y-4">
+            {groupedMeals.map(({ group, items }) => {
+              const groupLoggedCount = items.filter((m) => {
+                const ml = getMealStatus(m.id);
+                return ml?.status === 'plan' || ml?.status === 'deviation';
+              }).length;
               return (
-                <div key={meal.id} className="rounded-brand bg-background p-3">
-                  {meal.variants && meal.variants.length > 1 && !isLogged && !isSkipped && (
-                    <div className="mb-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.max(0, (prev[meal.id] ?? 0) - 1) }))}
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
-                        >
-                          ‹
-                        </button>
-                        <div className="flex-1 rounded-brand border border-primary px-3 py-2 text-center text-sm font-semibold text-primary">
-                          {meal.variants[variantIdx]?.name ?? meal.variants[0].name}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.min(meal.variants!.length - 1, (prev[meal.id] ?? 0) + 1) }))}
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
-                        >
-                          ›
-                        </button>
-                      </div>
-                      <div className="mt-1 flex justify-center gap-1">
-                        {meal.variants.map((_, idx) => (
+                <div key={group}>
+                  <div className="mb-2 text-lg font-bold text-white">{group} {groupLoggedCount}/{items.length}</div>
+                  <div className="space-y-3">
+                    {items.map((meal) => {
+                      const mealLog = getMealStatus(meal.id);
+                      const isLogged = mealLog?.status === 'plan' || mealLog?.status === 'deviation';
+                      const isSkipped = mealLog?.status === 'skipped';
+                      const variantIdx = selectedVariants[meal.id] ?? 0;
+                      const activeVariant = meal.variants && meal.variants.length > 0 ? (meal.variants[variantIdx] ?? null) : null;
+                      const displayName = isLogged ? (mealLog!.name || meal.name) : (activeVariant ? activeVariant.name : meal.name);
+                      const displayMacros = (() => {
+                        if (isLogged) {
+                          const m = mealLog!.macros;
+                          if (isKadaParshad(mealLog!.name || meal.name) && m.calories === 0) return KADA_PARSHAD_MACROS;
+                          return m;
+                        }
+                        if (activeVariant) return activeVariant.macros;
+                        if (isKadaParshad(meal.name)) return KADA_PARSHAD_MACROS;
+                        return meal.plannedMacros;
+                      })();
+
+                      if (isLogged) {
+                        return (
                           <div
-                            key={idx}
-                            className={`h-1.5 w-1.5 rounded-full ${variantIdx === idx ? 'bg-primary' : 'bg-zinc-600'}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="text-base font-semibold text-text-primary">{displayName}</div>
-                      <div className="mt-1 text-sm text-text-secondary">
-                        {`${meal.time} • ${displayMacros.calories}cal • P:${displayMacros.protein}g C:${displayMacros.carbs}g F:${displayMacros.fat}g`}
-                      </div>
-                      {mealLog?.status === 'deviation' && (
-                        <div className="mt-1 text-sm text-primary">
-                          Had: {mealLog.items.join(', ')}
+                            key={meal.id}
+                            className="cursor-pointer rounded-brand bg-background p-3"
+                            onClick={() => handleEditLog(meal.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full bg-[#d4af37]">
+                                <span className="text-[10px] font-bold leading-none text-white">✓</span>
+                              </div>
+                              <span className="flex-1 text-base text-white">{displayName}</span>
+                              <span className="text-xs text-zinc-500">tap to edit</span>
+                            </div>
+                            <div className="mt-1 pl-[26px] text-sm text-text-secondary">
+                              {`${displayMacros.calories}cal · P:${displayMacros.protein}g · C:${displayMacros.carbs}g · F:${displayMacros.fat}g`}
+                            </div>
+                            {mealLog?.status === 'deviation' && (
+                              <div className="mt-0.5 pl-[26px] text-sm text-primary">
+                                {mealLog.items.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={meal.id} className="rounded-brand bg-background p-3">
+                          {meal.variants && meal.variants.length > 1 && !isSkipped && (
+                            <div className="mb-2">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.max(0, (prev[meal.id] ?? 0) - 1) }))}
+                                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
+                                >
+                                  ‹
+                                </button>
+                                <div className="flex-1 rounded-brand border border-primary px-3 py-2 text-center text-sm font-semibold text-primary">
+                                  {meal.variants[variantIdx]?.name ?? meal.variants[0].name}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [meal.id]: Math.min(meal.variants!.length - 1, (prev[meal.id] ?? 0) + 1) }))}
+                                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-brand bg-background text-lg text-text-secondary"
+                                >
+                                  ›
+                                </button>
+                              </div>
+                              <div className="mt-1 flex justify-center gap-1">
+                                {meal.variants.map((_, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`h-1.5 w-1.5 rounded-full ${variantIdx === idx ? 'bg-primary' : 'bg-zinc-600'}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="text-base font-semibold text-text-primary">{displayName}</div>
+                              <div className="mt-1 text-sm text-text-secondary">
+                                {`${meal.time} • ${displayMacros.calories}cal • P:${displayMacros.protein}g C:${displayMacros.carbs}g F:${displayMacros.fat}g`}
+                              </div>
+                            </div>
+                          </div>
+
+                          {isSkipped && (
+                            <button
+                              type="button"
+                              onClick={() => handleUndoSkip(meal.id)}
+                              className="mt-3 w-full rounded-brand bg-zinc-800 px-3 py-2 text-sm text-zinc-500"
+                            >
+                              Skipped — tap to undo
+                            </button>
+                          )}
+
+                          {!isSkipped && (
+                            <div className="mt-3 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleHadThisClick(meal.id)}
+                                className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
+                              >
+                                Had this
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSomethingElseClick(meal.id)}
+                                className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
+                              >
+                                Something else
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSkipMeal(meal.id)}
+                                className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-zinc-500"
+                              >
+                                Skip
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {mealLog?.status === 'plan' && isKadaParshad(mealLog.name || meal.name) && (
-                        <div className="mt-1 text-sm text-text-secondary">
-                          {mealLog.quantity ? `${mealLog.quantity} tbsp` : '2 tbsp'}
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-
-                  {isSkipped && (
-                    <button
-                      type="button"
-                      onClick={() => handleUndoSkip(meal.id)}
-                      className="mt-3 w-full rounded-brand bg-zinc-800 px-3 py-2 text-sm text-zinc-500"
-                    >
-                      Skipped — tap to undo
-                    </button>
-                  )}
-
-                  {!isLogged && !isSkipped && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleHadThisClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
-                      >
-                        Had this
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSomethingElseClick(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-text-primary"
-                      >
-                        Something else
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSkipMeal(meal.id)}
-                        className="flex-1 rounded-brand bg-card px-3 py-2 text-sm text-zinc-500"
-                      >
-                        Skip
-                      </button>
-                    </div>
-                  )}
-
-                  {isLogged && (
-                    <button
-                      type="button"
-                      onClick={() => handleEditLog(meal.id)}
-                      className="mt-3 w-full rounded-brand bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
-                    >
-                      Logged ✓
-                    </button>
-                  )}
                 </div>
               );
             })}
