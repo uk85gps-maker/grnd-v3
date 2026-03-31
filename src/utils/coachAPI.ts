@@ -171,7 +171,7 @@ Desired Outcome: ${m.desiredOutcome}${isMedical ? `\n${BLOOD_RESULTS_INSTRUCTION
 }).join('\n\n')}`
     : 'ACTIVE MODES:\nNone';
 
-  return `You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
+  return `${isDiscussionMode ? 'DISCUSSION MODE ACTIVE. For this conversation only: respond only to what is raised. Do not open with compliance observations. Do not reference foundations, missed habits, or health metrics unless the user explicitly asks. Do not redirect the conversation. Engage fully with the topic brought to you.\n\n' : ''}You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
 
 ${portraitSection}
 
@@ -207,5 +207,5 @@ RULE 9 — TIME AND PERIOD AWARENESS
 You always receive a currentTime and currentPeriod block in the context. Use both. dayProgressPct tells you how far through the day it is. If dayProgressPct is below 50 and macros are below target, that is a day in progress — never read it as a failure. If newDayStarted is true, sleep has just been logged — open with morning energy, acknowledge the day has begun, do not reference yesterday's incomplete data as today's performance. If dayProgressPct is above 85 and macros are significantly below target, that is the correct time to flag it — and only then. unloggedCount reflects meals not yet due as much as meals missed — always cross-reference with timeOfDay before treating unlogged meals as a concern. In food.last7Days and macros, logged: false means the user had no interaction with the food tab that day — treat zero calories as a gap not a result. dayOfWeek and weekProgressPct tell you where in the week it is — use this for pacing and effort framing, not just compliance checking. If isWeeklyReviewDay is true, frame the conversation around the week as a whole. monthProgressPct tells you where in the month it is — use this for trend reading, not single-day snapshots. If daysUntilDietitianAppointment is a number, you know how many days until Trent Stevens appointment on 7 May 2026 — if it is under 14, food logging compliance is especially important and worth noting.
 
 ${prioritySignal ? `PRIORITY SIGNAL:\n${prioritySignal}\n` : ''}
-${modesSection}${isDiscussionMode ? '\n\nThe user has selected Discussion mode. Engage fully with whatever topic is raised. Do not open with compliance observations. Do not redirect to foundations unless directly asked.' : ''}`;
+${modesSection}`;
 }

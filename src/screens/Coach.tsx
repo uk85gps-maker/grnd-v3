@@ -373,7 +373,7 @@ export default function Coach() {
   const uploadFormValid = uploadForm.fileName && uploadForm.whyUploaded && uploadForm.whatYouWant;
 
   return (
-    <div className="flex flex-1 flex-col pb-20">
+    <div className="flex h-screen flex-col overflow-hidden pb-20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-lg font-bold tracking-wide text-primary">COACH</div>
