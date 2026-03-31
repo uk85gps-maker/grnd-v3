@@ -115,16 +115,6 @@ export interface SpecialistAction {
   bookedDate: string | null;
 }
 
-export interface FieldAction {
-  date: string;
-  action: string;
-  layer: string;
-  patternTargeted: string;
-  outcome: string;
-  confidenceRating: number | null;
-  notes: string;
-}
-
 export interface StageData {
   currentStage: number;
   readinessPercent: number;
@@ -304,22 +294,6 @@ export function checkAndAwardMilestones(): void {
     }
   }
 
-  // --- Field: total outcomes count milestones ---
-  {
-    const raw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
-    if (raw) {
-      try {
-        const outcomes = JSON.parse(raw) as Array<unknown>;
-        const total = outcomes.length;
-        for (const count of [5, 10, 25]) {
-          if (total >= count) {
-            award({ id: `field-${count}outcomes-${todayKey}`, label: `${count} field outcomes logged`, stream: 'Field Actions', achievedDate: todayKey, metric: 'total outcomes', value: total, threshold: count });
-          }
-        }
-      } catch { /* skip */ }
-    }
-  }
-
   // --- Phase Mode: survived a phase ---
   {
     const raw = localStorage.getItem('grnd_phase_history');
@@ -349,7 +323,6 @@ export function getComplianceSnapshot(): {
   body: ComplianceStream | null;
   macros: ComplianceStream | null;
   specialists: ComplianceStream | null;
-  field: ComplianceStream | null;
 } {
   // Check mood logging compliance - today and last 7 days
   let moodCompliance: ComplianceStream | null = null;
@@ -568,33 +541,6 @@ export function getComplianceSnapshot(): {
       }
     })(),
 
-    // Checks: Last 7 days of field actions - green if 2+ per week, amber if 1, red if 0
-    field: (() => {
-      const raw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
-      if (!raw) return null;
-      
-      try {
-        const outcomes = JSON.parse(raw) as Array<{ loggedAt: string }>;
-        const today = new Date();
-        const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
-        
-        const thisWeekCount = outcomes.filter((o) => {
-          const loggedDate = new Date(o.loggedAt);
-          return loggedDate >= weekAgo && loggedDate <= today;
-        }).length;
-        
-        if (thisWeekCount >= 2) {
-          return { name: 'Field Actions', status: 'green', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
-        } else if (thisWeekCount === 1) {
-          return { name: 'Field Actions', status: 'amber', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
-        } else {
-          return { name: 'Field Actions', status: 'red', value: `${thisWeekCount} this week`, threshold: '2+ per week' };
-        }
-      } catch {
-        return null;
-      }
-    })(),
   };
 }
 
@@ -626,7 +572,6 @@ export function getCoachContext(): {
   macros: any;
   food: any;
   specialists: any;
-  field: any;
   learn: any;
   stage: any;
   dailyNotes: Array<{ date: string; note: string }> | null;
@@ -1160,79 +1105,6 @@ export function getCoachContext(): {
       }
     })(),
 
-    // Populated by: Field tab - field actions and confidence ratings
-    field: (() => {
-      const actionsRaw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG_ACTIONS);
-      const outcomesRaw = localStorage.getItem(STORAGE_KEYS.FIELD_LOG);
-      
-      if (!outcomesRaw) {
-        return {
-          actionsInLibrary: actionsRaw ? JSON.parse(actionsRaw).filter((a: any) => !a.isArchived).length : 0,
-          outcomesThisWeek: 0,
-          lastFiveOutcomes: [],
-          weeklyActionTarget: 2,
-          complianceStatus: 'red',
-        };
-      }
-      
-      try {
-        const actions = actionsRaw ? JSON.parse(actionsRaw) : [];
-        const outcomes = JSON.parse(outcomesRaw) as Array<{
-          id: string;
-          actionId: string;
-          date: string;
-          actionTaken: string;
-          context: string;
-          outcome: string;
-          confidenceRating: number;
-          patternObserved: string;
-          loggedAt: string;
-        }>;
-        
-        const today = new Date();
-        const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
-        
-        const outcomesThisWeek = outcomes.filter((o) => {
-          const loggedDate = new Date(o.loggedAt);
-          return loggedDate >= weekAgo && loggedDate <= today;
-        }).length;
-        
-        const sortedOutcomes = [...outcomes].sort((a, b) => 
-          new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
-        );
-        
-        const lastFiveOutcomes = sortedOutcomes.slice(0, 5).map((o) => {
-          const action = actions.find((a: any) => a.id === o.actionId);
-          return {
-            actionName: action?.name || 'Unknown',
-            layer: action?.layer || 0,
-            patternObserved: o.patternObserved,
-            confidenceRating: o.confidenceRating,
-            date: o.date,
-          };
-        });
-        
-        const complianceStatus = outcomesThisWeek >= 2 ? 'green' : outcomesThisWeek === 1 ? 'amber' : 'red';
-        
-        return {
-          actionsInLibrary: actions.filter((a: any) => !a.isArchived).length,
-          outcomesThisWeek,
-          lastFiveOutcomes,
-          weeklyActionTarget: 2,
-          complianceStatus,
-        };
-      } catch {
-        return {
-          actionsInLibrary: 0,
-          outcomesThisWeek: 0,
-          lastFiveOutcomes: [],
-          weeklyActionTarget: 2,
-          complianceStatus: 'red',
-        };
-      }
-    })(),
-
     // Populated by: Coach tab library
     learn: (() => {
       const raw = localStorage.getItem(STORAGE_KEYS.LEARN_MATERIALS);
@@ -1340,7 +1212,7 @@ export function getCoachContext(): {
       const snap = compliance;
 
       const foundationItems = ['sleep', 'macros', 'checklist'];
-      const streamKeys = ['checklist', 'sleep', 'mood', 'gym', 'macros', 'body', 'specialists', 'field'] as const;
+      const streamKeys = ['checklist', 'sleep', 'mood', 'gym', 'macros', 'body', 'specialists'] as const;
 
       const observationText: Record<string, (value: number | string) => string> = {
         'Checklist': (v) => `Checklist completion is at ${v}%`,
@@ -1350,7 +1222,6 @@ export function getCoachContext(): {
         'Macros': (v) => `Macros at ${v}% of target`,
         'Body Stats': (v) => `Body stats last logged ${v} days ago`,
         'Specialists': (v) => `${v} specialist actions overdue`,
-        'Field Actions': (v) => `Field actions — ${v}`,
       };
 
       streamKeys.forEach(key => {

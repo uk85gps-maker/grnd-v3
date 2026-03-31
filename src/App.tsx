@@ -3,10 +3,9 @@ import Today from '@/screens/Today'
 import Gym from '@/screens/Gym'
 import Review from '@/screens/Review'
 import Coach from '@/screens/Coach'
-import Field from '@/screens/Field'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 
-function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field' }) {
+function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' }) {
   switch (name) {
     case 'today':
       return (
@@ -41,13 +40,6 @@ function TabIcon({ name }: { name: 'today' | 'coach' | 'gym' | 'review' | 'field
           <path d="M8 17V9" />
           <path d="M12 17V7" />
           <path d="M16 17v-5" />
-        </svg>
-      )
-    case 'field':
-      return (
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2l4 9-4 11-4-11 4-9z" />
-          <path d="M12 11l7 3-7 8-7-8 7-3z" />
         </svg>
       )
   }
@@ -97,15 +89,6 @@ function BottomNav() {
             </>
           )}
         </NavLink>
-        <NavLink to="/field" className={linkClassName}>
-          {({ isActive }) => (
-            <>
-              <TabIcon name="field" />
-              <span>Field</span>
-              {isActive && <div className="mt-0.5 h-1 w-1 rounded-full bg-[#d4af37]" />}
-            </>
-          )}
-        </NavLink>
       </div>
     </nav>
   )
@@ -136,7 +119,6 @@ function App() {
           <Route path="/coach" element={<Coach />} />
           <Route path="/gym" element={<Gym />} />
           <Route path="/review" element={<Review />} />
-          <Route path="/field" element={<Field />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>
       </div>

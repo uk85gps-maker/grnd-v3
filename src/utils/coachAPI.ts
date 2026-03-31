@@ -1,22 +1,19 @@
 import { getPortraitMemory } from './portraitMemory';
-import { getActiveModes } from './coachModes';
 import { formatPatternMemoryForPrompt } from './patternMemory';
 import { getCoachContext, getComplianceSnapshot } from './coachContext';
-import { mergeBloodResults } from './reviewData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 export async function sendMessageToCoach(
   userMessage: string,
-  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
-  isDiscussionMode = false
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Error('Supabase configuration missing. Please check your .env file.');
   }
 
-  const systemPrompt = buildSystemPrompt(isDiscussionMode);
+  const systemPrompt = buildSystemPrompt();
 
   const messages = [
     ...conversationHistory,
@@ -48,34 +45,7 @@ export async function sendMessageToCoach(
       throw new Error('Invalid response format from API');
     }
 
-    let responseText: string = data.content[0].text;
-
-    // If Medical mode is active, extract and save any blood results block
-    const modesRaw = localStorage.getItem('grnd_coach_modes');
-    const medicalActive = modesRaw
-      ? (() => {
-          try {
-            const modes = JSON.parse(modesRaw) as Array<{ name: string; active: boolean }>;
-            console.log('[coachAPI] grnd_coach_modes parsed:', modes);
-            return modes.some((m) => m.name.toLowerCase().includes('medical') && (m.active === true || (m as any).isActive === true));
-          } catch {
-            return false;
-          }
-        })()
-      : false;
-
-    const blockMatch = responseText.match(/<BLOOD_RESULTS>([\s\S]*?)<\/BLOOD_RESULTS>/);
-    if (blockMatch) {
-      if (medicalActive) {
-        try {
-          const parsed = JSON.parse(blockMatch[1].trim()) as { markers: Array<{ name: string; value: number; unit: string; date: string; optimalMin: number; optimalMax: number; normalMin: number; normalMax: number; tier: 1 | 2 }>; testDate: string };
-          mergeBloodResults(parsed.markers, parsed.testDate);
-        } catch { /* malformed block — ignore, still strip */ }
-      }
-      responseText = responseText.replace(/<BLOOD_RESULTS>[\s\S]*?<\/BLOOD_RESULTS>/, '').trim();
-    }
-
-    return responseText;
+    return data.content[0].text as string;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -84,20 +54,10 @@ export async function sendMessageToCoach(
   }
 }
 
-function buildSystemPrompt(isDiscussionMode = false): string {
-  const context = getCoachContext();
-
-  if (isDiscussionMode) {
-    return `CRITICAL INSTRUCTION: This is Discussion Mode. Do not mention health, habits, sleep, gym, food, protocols, or foundations for any reason.
-
-You are a knowledgeable conversation partner for Gurpreet Singh, 40, male, Sydney Australia, Sikh faith, electrical background, building himself deliberately. He is intelligent, direct, and wants depth.
-
-Engage with whatever topic he raises. Answer directly and thoroughly. Stay on topic.`;
-  }
-
+function buildSystemPrompt(): string {
   const portrait = getPortraitMemory();
+  const context = getCoachContext();
   const patterns = formatPatternMemoryForPrompt();
-  const activeModes = getActiveModes();
   const compliance = getComplianceSnapshot();
 
   // Build portrait section
@@ -145,41 +105,6 @@ ${patterns}`;
     prioritySignal = `Macro tracking compliance is red. ${compliance.macros.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   }
 
-  const BLOOD_RESULTS_INSTRUCTION = `When the user pastes blood test results, extract all markers and return them in this exact format at the END of your response, after your normal reply:
-
-<BLOOD_RESULTS>
-{
-  "markers": [
-    {
-      "name": "LDL Cholesterol",
-      "value": 4.5,
-      "unit": "mmol/L",
-      "date": "YYYY-MM-DD",
-      "optimalMin": 0,
-      "optimalMax": 2.5,
-      "normalMin": 0,
-      "normalMax": 3.4,
-      "tier": 1
-    }
-  ],
-  "testDate": "YYYY-MM-DD"
-}
-</BLOOD_RESULTS>
-
-Include every marker from the results. Use the date the test was taken for testDate. Australian lab reference ranges apply. Functional medicine optimal ranges apply — not just normal ranges.`;
-
-  // Build active modes section
-  const modesSection = activeModes.length > 0
-    ? `ACTIVE MODES:
-${activeModes.map(m => {
-  const isMedical = m.name.toLowerCase().includes('medical');
-  return `${m.emoji} ${m.name}
-Purpose: ${m.purpose}
-Situations: ${m.situations}
-Desired Outcome: ${m.desiredOutcome}${isMedical ? `\n${BLOOD_RESULTS_INSTRUCTION}` : ''}`;
-}).join('\n\n')}`
-    : 'ACTIVE MODES:\nNone';
-
   return `You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
 
 ${portraitSection}
@@ -215,6 +140,5 @@ If dailyNotes exists in the context, find today's entry first (the entry with to
 RULE 9 — TIME AND PERIOD AWARENESS
 You always receive a currentTime and currentPeriod block in the context. Use both. dayProgressPct tells you how far through the day it is. If dayProgressPct is below 50 and macros are below target, that is a day in progress — never read it as a failure. If newDayStarted is true, sleep has just been logged — open with morning energy, acknowledge the day has begun, do not reference yesterday's incomplete data as today's performance. If dayProgressPct is above 85 and macros are significantly below target, that is the correct time to flag it — and only then. unloggedCount reflects meals not yet due as much as meals missed — always cross-reference with timeOfDay before treating unlogged meals as a concern. In food.last7Days and macros, logged: false means the user had no interaction with the food tab that day — treat zero calories as a gap not a result. dayOfWeek and weekProgressPct tell you where in the week it is — use this for pacing and effort framing, not just compliance checking. If isWeeklyReviewDay is true, frame the conversation around the week as a whole. monthProgressPct tells you where in the month it is — use this for trend reading, not single-day snapshots. If daysUntilDietitianAppointment is a number, you know how many days until Trent Stevens appointment on 7 May 2026 — if it is under 14, food logging compliance is especially important and worth noting.
 
-${prioritySignal ? `PRIORITY SIGNAL:\n${prioritySignal}\n` : ''}
-${modesSection}`;
+${prioritySignal ? `PRIORITY SIGNAL:\n${prioritySignal}` : ''}`;
 }
