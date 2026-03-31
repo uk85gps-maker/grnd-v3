@@ -795,7 +795,22 @@ export default function FoodTab() {
               }).length;
               return (
                 <div key={group}>
-                  <div className="mb-2 text-lg font-bold text-white">{group} {groupLoggedCount}/{items.length}</div>
+                  {(() => {
+                    const groupMeta: Record<string, { symbol: string; colour: string }> = {
+                      'Pre-Gym':        { symbol: '🌅', colour: '#a78bfa' },
+                      'Work Morning':   { symbol: '☀️', colour: '#fbbf24' },
+                      'Work Afternoon': { symbol: '⚡', colour: '#34d399' },
+                      'After Work':     { symbol: '🏠', colour: '#60a5fa' },
+                      'Bedtime':        { symbol: '🌙', colour: '#f472b6' },
+                      'Other':          { symbol: '📋', colour: '#9ca3af' },
+                    };
+                    const { symbol: groupSymbol, colour: groupColour } = groupMeta[group] ?? { symbol: '📋', colour: '#9ca3af' };
+                    return (
+                      <div style={{ color: groupColour }} className="mb-2 text-lg font-bold">
+                        {groupSymbol} {group} {groupLoggedCount}/{items.length}
+                      </div>
+                    );
+                  })()}
                   <div className="space-y-3">
                     {items.map((meal) => {
                       const mealLog = getMealStatus(meal.id);
@@ -832,7 +847,7 @@ export default function FoodTab() {
                             <div className="mt-1 pl-[26px] text-sm text-text-secondary">
                               {`${displayMacros.calories}cal · P:${displayMacros.protein}g · C:${displayMacros.carbs}g · F:${displayMacros.fat}g`}
                             </div>
-                            {mealLog?.status === 'deviation' && (
+                            {mealLog?.status === 'deviation' && mealLog.items.length > 0 && (
                               <div className="mt-0.5 pl-[26px] text-sm text-primary">
                                 {mealLog.items.join(', ')}
                               </div>
