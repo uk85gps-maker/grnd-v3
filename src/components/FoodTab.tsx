@@ -761,7 +761,7 @@ export default function FoodTab() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm text-text-secondary">CALORIES</div>
-            <div className="mt-1 text-lg font-bold text-primary">
+            <div className={`mt-1 text-lg font-bold ${foodLog.dailyTotals.calories > targets.calories ? 'text-amber-500' : 'text-primary'}`}>
               {Math.round(foodLog.dailyTotals.calories)} / {targets.calories}
             </div>
           </div>

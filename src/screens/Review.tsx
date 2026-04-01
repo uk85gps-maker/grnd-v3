@@ -1034,7 +1034,7 @@ export default function Review() {
                   </div>
                 )}
                 {s.status === 'booked' && s.bookedDate && (
-                  <div className="mt-1 text-sm text-zinc-400">Booked: {s.bookedDate}</div>
+                  <div className="mt-1 text-sm text-zinc-400">Booked: {new Date(s.bookedDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                 )}
               </button>
             );
@@ -1115,7 +1115,7 @@ export default function Review() {
               </tr>
               <tr className="border-b border-text-secondary/20">
                 <td className="py-3 text-text-primary">Waist</td>
-                <td className="py-3 text-center text-text-primary">{latestStats?.waist ? `${latestStats.waist}mm` : '—'}</td>
+                <td className="py-3 text-center text-text-primary">{latestStats?.waist ? `${(latestStats.waist / 10).toFixed(1)}cm` : '—'}</td>
                 <td className="py-3 text-center">
                   <button
                     type="button"
