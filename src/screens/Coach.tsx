@@ -94,6 +94,7 @@ export default function Coach() {
   const [error, setError] = useState<string | null>(null);
   const [showPortrait, setShowPortrait] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [wasCleared, setWasCleared] = useState(false);
   const [editingPortraitField, setEditingPortraitField] = useState<keyof PortraitMemory | null>(null);
   const [portrait, setPortrait] = useState<PortraitMemory>(getPortraitMemory());
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -180,6 +181,7 @@ export default function Coach() {
   const handleClearConversation = () => {
     clearConversationHistory();
     setMessages([]);
+    setWasCleared(true);
     setShowClearConfirm(false);
   };
 
@@ -332,7 +334,7 @@ export default function Coach() {
       <div className="mt-4 flex-1 space-y-3 overflow-y-auto">
         {messages.length === 0 && !isLoading && (
           <div className="flex h-full items-center justify-center text-text-secondary">
-            What's on your mind?
+            {wasCleared ? 'Fresh start. What\'s on your mind?' : 'What\'s on your mind?'}
           </div>
         )}
 
@@ -419,8 +421,7 @@ export default function Coach() {
       {showClearConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowClearConfirm(false)}>
           <div className="w-full max-w-sm rounded-brand bg-card p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 text-lg font-bold text-text-primary">Clear conversation history?</div>
-            <div className="mb-6 text-base text-text-secondary">This cannot be undone.</div>
+            <div className="mb-6 text-lg font-bold text-text-primary">Clear chat history?</div>
             <div className="flex gap-3">
               <button
                 type="button"
