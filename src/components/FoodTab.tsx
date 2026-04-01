@@ -86,6 +86,8 @@ export default function FoodTab() {
   // Food logging modals
   const [hadThisMealId, setHadThisMealId] = useState<string | null>(null);
   const [hadThisTime, setHadThisTime] = useState('');
+  const [lastMealPickerId, setLastMealPickerId] = useState<string | null>(null);
+  const [lastMealTime, setLastMealTime] = useState('');
   const [somethingElseMealId, setSomethingElseMealId] = useState<string | null>(null);
   const [deviationItems, setDeviationItems] = useState<string[]>(['']);
   const [estimating, setEstimating] = useState(false);
@@ -139,7 +141,7 @@ export default function FoodTab() {
       } else if (locked) {
         setFastingDisplay(`Fasted ${hours}h`);
       } else {
-        setFastingDisplay(`Fasting... ${hours}h`);
+        setFastingDisplay(`Fast... ${hours}h`);
       }
     };
     compute();
@@ -173,6 +175,14 @@ export default function FoodTab() {
 
   const getMealStatus = (mealId: string): MealLog | null => {
     return foodLog.meals.find((m) => (m as any).planItemId === mealId || m.id === mealId) || null;
+  };
+
+  const wouldBeLastMeal = (mealId: string): boolean => {
+    const currentLog = loadFoodLog(dayKey);
+    return meals.filter((m) => m.id !== mealId).every((m) => {
+      const log = currentLog.meals.find((ml) => (ml as any).planItemId === m.id || ml.id === m.id);
+      return log && (log.status === 'plan' || log.status === 'deviation' || log.status === 'skipped');
+    });
   };
 
   const getSupplementStatus = (suppId: string): boolean => {
@@ -420,9 +430,13 @@ export default function FoodTab() {
 
     // Normal flow
     const isFirstMealOfDay = loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0;
+    const isLastMealOfDay = !isFirstMealOfDay && wouldBeLastMeal(mealId);
     if (isFirstMealOfDay) {
       setHadThisMealId(mealId);
       setHadThisTime(getCurrentTime());
+    } else if (isLastMealOfDay) {
+      setLastMealPickerId(mealId);
+      setLastMealTime(getCurrentTime());
     } else {
       logHadThis(mealId, getCurrentTime());
     }
@@ -476,6 +490,14 @@ export default function FoodTab() {
   const handleConfirmHadThis = () => {
     if (hadThisMealId && hadThisTime) {
       logHadThis(hadThisMealId, hadThisTime);
+    }
+  };
+
+  const handleConfirmLastMeal = () => {
+    if (lastMealPickerId && lastMealTime) {
+      logHadThis(lastMealPickerId, lastMealTime);
+      setLastMealPickerId(null);
+      setLastMealTime('');
     }
   };
 
@@ -583,7 +605,8 @@ export default function FoodTab() {
 
     const currentLog = loadFoodLog(dayKey);
     const isFirstMealOfDay = currentLog.meals.filter((m) => m.loggedTime).length === 0;
-    const time = isFirstMealOfDay ? (deviationTime || getCurrentTime()) : getCurrentTime();
+    const isLastMealOfDay = !isFirstMealOfDay && somethingElseMealId ? wouldBeLastMeal(somethingElseMealId) : false;
+    const time = (isFirstMealOfDay || isLastMealOfDay) ? (deviationTime || getCurrentTime()) : getCurrentTime();
 
     const filledItems = deviationItems.filter((item) => item.trim());
 
@@ -758,9 +781,9 @@ export default function FoodTab() {
               {Math.round(foodLog.dailyTotals.protein)}g / {targets.protein}g
             </div>
           </div>
-          <div>
-            <div className="text-sm text-text-secondary">FASTING</div>
-            <div className="mt-1 text-lg font-bold text-text-secondary">
+          <div className="min-w-0">
+            <div className="text-sm text-text-secondary">FAST</div>
+            <div className="mt-1 truncate text-lg font-bold text-text-secondary">
               {fastingDisplay}
             </div>
           </div>
@@ -994,7 +1017,7 @@ export default function FoodTab() {
             className="flex w-full max-w-md flex-col rounded-t-2xl bg-[#141414] p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 text-lg font-bold text-text-primary">First meal time?</div>
+            <div className="mb-4 text-lg font-bold text-text-primary">What time did you eat this?</div>
             <input
               type="time"
               value={hadThisTime}
@@ -1012,6 +1035,43 @@ export default function FoodTab() {
               <button
                 type="button"
                 onClick={handleConfirmHadThis}
+                className="flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Last Meal Time Picker Modal */}
+      {lastMealPickerId && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setLastMealPickerId(null)}
+        >
+          <div
+            className="flex w-full max-w-md flex-col rounded-t-2xl bg-[#141414] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 text-lg font-bold text-text-primary">What time did you finish eating?</div>
+            <input
+              type="time"
+              value={lastMealTime}
+              onChange={(e) => setLastMealTime(e.target.value)}
+              className="mb-4 w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLastMealPickerId(null)}
+                className="flex-1 rounded-brand bg-background px-4 py-3 text-base font-semibold text-text-primary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLastMeal}
                 className="flex-1 rounded-brand bg-primary px-4 py-3 text-base font-semibold text-background"
               >
                 Confirm
@@ -1130,7 +1190,19 @@ export default function FoodTab() {
 
                   {loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length === 0 && (
                     <>
-                      <div className="text-base text-text-secondary">First meal time?</div>
+                      <div className="text-base text-text-secondary">What time did you eat this?</div>
+                      <input
+                        type="time"
+                        value={deviationTime}
+                        onChange={(e) => setDeviationTime(e.target.value)}
+                        className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
+                      />
+                    </>
+                  )}
+                  {loadFoodLog(dayKey).meals.filter((m) => m.loggedTime).length > 0 &&
+                   somethingElseMealId != null && wouldBeLastMeal(somethingElseMealId) && (
+                    <>
+                      <div className="text-base text-text-secondary">What time did you finish eating?</div>
                       <input
                         type="time"
                         value={deviationTime}
@@ -1308,7 +1380,7 @@ export default function FoodTab() {
             </div>
             {kadaTime !== '' && (
               <>
-                <div className="mb-1 text-sm text-text-secondary">First meal — what time?</div>
+                <div className="mb-1 text-sm text-text-secondary">What time did you eat this?</div>
                 <input
                   type="time"
                   value={kadaTime}
