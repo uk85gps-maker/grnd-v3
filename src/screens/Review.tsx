@@ -225,16 +225,33 @@ export default function Review() {
 
   const complianceSnapshot = useMemo(() => getComplianceSnapshot(), []);
 
+  const meaningScore = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('grnd_checklist_structure');
+      if (!raw) return 0;
+      const sections = JSON.parse(raw) as Array<{ items?: Array<{ purpose?: string }> }>;
+      let total = 0;
+      let withPurpose = 0;
+      for (const section of sections) {
+        for (const item of section.items ?? []) {
+          total++;
+          if (item.purpose && item.purpose.trim().length > 0) withPurpose++;
+        }
+      }
+      return total === 0 ? 0 : Math.round((withPurpose / total) * 100);
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const systemHealthScore = useMemo(() => {
     const weights = {
-      checklist: 0.20,
-      mood: 0.15,
-      sleep: 0.15,
-      gym: 0.15,
-      macros: 0.10,
-      field: 0.10,
+      checklist: 0.25,
+      sleep: 0.20,
+      gym: 0.20,
+      macros: 0.15,
+      body: 0.10,
       meaning: 0.10,
-      body: 0.05,
     };
 
     const statusToScore = (status: string | undefined) => {
@@ -244,57 +261,16 @@ export default function Review() {
       return 0;
     };
 
-    const fieldScore = (() => {
-      try {
-        const raw = localStorage.getItem('grnd_field_log');
-        if (!raw) return 0;
-        const entries = JSON.parse(raw) as Array<{ date?: string; timestamp?: string }>;
-        const nowSydney = new Date(new Date().toLocaleString('en-AU', { timeZone: 'Australia/Sydney' }));
-        const sevenDaysAgo = new Date(nowSydney);
-        sevenDaysAgo.setDate(nowSydney.getDate() - 7);
-        const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
-        const todayStr = nowSydney.toISOString().slice(0, 10);
-        const count = entries.filter((e) => {
-          const d = e.date ?? (e.timestamp ? e.timestamp.slice(0, 10) : null);
-          return d != null && d >= sevenDaysAgoStr && d <= todayStr;
-        }).length;
-        return count === 0 ? 0 : count === 1 ? 50 : 100;
-      } catch {
-        return 0;
-      }
-    })();
-
-    const meaningScore = (() => {
-      try {
-        const raw = localStorage.getItem('grnd_checklist_structure');
-        if (!raw) return 0;
-        const sections = JSON.parse(raw) as Array<{ items?: Array<{ purpose?: string }> }>;
-        let total = 0;
-        let withPurpose = 0;
-        for (const section of sections) {
-          for (const item of section.items ?? []) {
-            total++;
-            if (item.purpose && item.purpose.trim().length > 0) withPurpose++;
-          }
-        }
-        return total === 0 ? 0 : Math.round((withPurpose / total) * 100);
-      } catch {
-        return 0;
-      }
-    })();
-
     let totalScore = 0;
     totalScore += statusToScore(complianceSnapshot.checklist?.status) * weights.checklist;
-    totalScore += statusToScore(complianceSnapshot.mood?.status) * weights.mood;
     totalScore += statusToScore(complianceSnapshot.sleep?.status) * weights.sleep;
-    totalScore += statusToScore(complianceSnapshot.macros?.status) * weights.macros;
     totalScore += statusToScore(complianceSnapshot.gym?.status) * weights.gym;
-    totalScore += fieldScore * weights.field;
-    totalScore += meaningScore * weights.meaning;
+    totalScore += statusToScore(complianceSnapshot.macros?.status) * weights.macros;
     totalScore += (latestStats ? 100 : 0) * weights.body;
+    totalScore += meaningScore * weights.meaning;
 
     return Math.round(totalScore);
-  }, [complianceSnapshot, latestStats]);
+  }, [complianceSnapshot, latestStats, meaningScore]);
 
   const streamRows: StreamRow[] = useMemo(() => {
     return [
@@ -303,12 +279,6 @@ export default function Review() {
         status: (complianceSnapshot.checklist?.status as StreamStatus) || 'grey',
         lastActivity: complianceSnapshot.checklist?.value?.toString() || 'Not yet tracking',
         built: !!complianceSnapshot.checklist,
-      },
-      {
-        name: 'Mood & Energy',
-        status: (complianceSnapshot.mood?.status as StreamStatus) || 'grey',
-        lastActivity: complianceSnapshot.mood?.value?.toString() || 'Not yet tracking',
-        built: !!complianceSnapshot.mood,
       },
       {
         name: 'Sleep',
@@ -329,16 +299,10 @@ export default function Review() {
         built: !!complianceSnapshot.gym,
       },
       {
-        name: 'Field Actions',
-        status: 'grey',
-        lastActivity: 'Not yet tracking',
-        built: false,
-      },
-      {
         name: 'Meaning Fields',
-        status: 'grey',
-        lastActivity: 'Not yet tracking',
-        built: false,
+        status: meaningScore >= 80 ? 'green' : meaningScore >= 40 ? 'amber' : 'red',
+        lastActivity: `${meaningScore}% items have purpose`,
+        built: true,
       },
       {
         name: 'Body Stats',
@@ -347,7 +311,7 @@ export default function Review() {
         built: true,
       },
     ];
-  }, [complianceSnapshot, latestStats]);
+  }, [complianceSnapshot, latestStats, meaningScore]);
 
   const gymPerformanceScore = useMemo(() => {
     const last30Days = new Date();

@@ -97,8 +97,6 @@ ${patterns}`;
     prioritySignal = `Checklist compliance is red. ${compliance.checklist.value} completed. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.sleep?.status === 'red') {
     prioritySignal = `Sleep compliance is red. ${compliance.sleep.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
-  } else if (compliance.mood?.status === 'red') {
-    prioritySignal = `Mood logging compliance is red. ${compliance.mood.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.gym?.status === 'red') {
     prioritySignal = `Gym compliance is red. ${compliance.gym.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.macros?.status === 'red') {
