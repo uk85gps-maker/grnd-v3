@@ -390,11 +390,16 @@ export function getComplianceSnapshot(): {
         const totalItems = countItems(structure);
         if (totalItems === 0) return null;
 
+        const weeklySection = structure.find(s => s.id === 'weekly-environment');
+        const weeklyItemIds = new Set(
+          (weeklySection?.items as Array<{ id?: string }> | undefined)?.map(i => i.id).filter(Boolean) ?? []
+        );
+
         const completionRaw = localStorage.getItem(`${STORAGE_KEYS.CHECKLIST_COMPLETION}_${todayKey}`);
         let completedCount = 0;
         if (completionRaw) {
           const completion = JSON.parse(completionRaw) as { completedIds?: string[] };
-          completedCount = completion.completedIds?.length || 0;
+          completedCount = (completion.completedIds ?? []).filter(id => !weeklyItemIds.has(id)).length;
         }
         const completionPct = Math.min(100, Math.round((completedCount / totalItems) * 100));
         const status: 'green' | 'amber' | 'red' = completionPct >= 80 ? 'green' : completionPct >= 50 ? 'amber' : 'red';
