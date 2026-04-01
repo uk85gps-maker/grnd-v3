@@ -94,13 +94,17 @@ ${patterns}`;
   // Build priority signal
   let prioritySignal = '';
   if (compliance.checklist?.status === 'red') {
-    prioritySignal = `Checklist compliance is red. ${compliance.checklist.value} completed. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
+    prioritySignal = `Checklist compliance is red. ${compliance.checklist.value}% complete. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.sleep?.status === 'red') {
     prioritySignal = `Sleep compliance is red. ${compliance.sleep.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.gym?.status === 'red') {
     prioritySignal = `Gym compliance is red. ${compliance.gym.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   } else if (compliance.macros?.status === 'red') {
     prioritySignal = `Macro tracking compliance is red. ${compliance.macros.value}. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
+  } else if (compliance.body?.status === 'red') {
+    prioritySignal = `Body stats haven't been logged in over 14 days. One weigh-in and waist measurement is all it takes. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
+  } else if (compliance.specialists?.status === 'red') {
+    prioritySignal = `There are overdue specialist appointments. These have been waiting too long and affect your health score directly. Open with one plain human observation about this. Ask one question. Then engage fully with whatever Gurpreet wants to discuss. This signal affects how you open — it never blocks you from answering.`;
   }
 
   return `You are GRND — a personal coaching system for Gurpreet Singh, 40, male, Sydney Australia.
