@@ -86,6 +86,7 @@ export default function FoodTab() {
   const [hadThisTime, setHadThisTime] = useState('');
   const [lastMealPickerId, setLastMealPickerId] = useState<string | null>(null);
   const [lastMealTime, setLastMealTime] = useState('');
+  const [suppExpanded, setSuppExpanded] = useState(false);
   const [somethingElseMealId, setSomethingElseMealId] = useState<string | null>(null);
   const [deviationItems, setDeviationItems] = useState<string[]>(['']);
   const [estimating, setEstimating] = useState(false);
@@ -129,6 +130,14 @@ export default function FoodTab() {
       saveFoodLog(updated, yesterdayKey);
     }
   }, [yesterdayKey]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) setSuppExpanded(false);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const meals = useMemo(() => {
     return foodPlan
@@ -945,29 +954,37 @@ export default function FoodTab() {
       {/* Supplement List */}
       {supplements.length > 0 && (
         <Card>
-          <div className="mb-3 text-lg font-bold text-white">💊 Supplements</div>
-          <div className="space-y-2">
-            {supplements.map((supplement) => {
-              const confirmed = getSupplementStatus(supplement.id);
-
-              return (
+          <button
+            type="button"
+            className="flex w-full items-center justify-between"
+            onClick={() => setSuppExpanded((v) => !v)}
+          >
+            <div className="text-lg font-bold text-white">💊 Supplements</div>
+            <div className="text-sm text-text-secondary">
+              {(() => {
+                const confirmedCount = supplements.filter((s) => getSupplementStatus(s.id)).length;
+                return `${confirmedCount} / ${supplements.length} done`;
+              })()}
+            </div>
+          </button>
+          {suppExpanded && (
+            <div className="mt-3 space-y-2">
+              {supplements.filter((s) => !getSupplementStatus(s.id)).map((supplement) => (
                 <button
                   key={supplement.id}
                   type="button"
                   onClick={() => handleToggleSupplement(supplement.id)}
                   className="flex w-full items-center gap-3 rounded-brand bg-background p-3"
                 >
-                  <div className={`h-5 w-5 flex items-center justify-center rounded-[4px] ${confirmed ? 'bg-primary' : 'border border-text-secondary'}`}>
-                    {confirmed && <span className="text-sm text-background">✓</span>}
-                  </div>
+                  <div className="h-5 w-5 flex items-center justify-center rounded-[4px] border border-text-secondary" />
                   <div className="flex-1 text-left">
                     <div className="text-base text-text-primary">{supplement.name}</div>
                     <div className="text-sm text-text-secondary">{supplement.time}</div>
                   </div>
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
