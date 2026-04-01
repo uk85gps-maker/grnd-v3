@@ -442,7 +442,7 @@ export function getComplianceSnapshot(): {
         sevenDaysAgo.setDate(today.getDate() - 7);
         const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
         const sessionCount = sessions.filter(
-          (s) => s.date >= sevenDaysAgoStr && s.date <= todayKey && s.dayType?.toLowerCase() !== 'rest'
+          (s) => s.date.slice(0, 10) >= sevenDaysAgoStr && s.date.slice(0, 10) <= todayKey && s.dayType?.toLowerCase() !== 'rest'
         ).length;
         const status: 'green' | 'amber' | 'red' = sessionCount >= 3 ? 'green' : sessionCount >= 2 ? 'amber' : 'red';
         return { name: 'Gym', status, value: sessionCount, threshold: 3 };

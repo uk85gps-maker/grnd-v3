@@ -14,6 +14,7 @@ import {
   getLastSessionForDayType,
   getInjuryFlagLabel,
 } from '../utils/gymStructure';
+import { getGrndDayKey } from '../utils/dayKey';
 
 interface WorkingSet {
   setNumber: number;
@@ -54,7 +55,39 @@ export default function Gym() {
     setProgram(loadedProgram);
     const loadedSessions = getGymSessions();
     setSessions(loadedSessions);
+
+    // Restore draft if it belongs to today
+    try {
+      const draftRaw = localStorage.getItem('grnd_gym_draft');
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw) as {
+          dayKey: string;
+          dayType: DayType;
+          workingSets: Record<string, WorkingSet[]>;
+          energyRating: number;
+        };
+        if (draft.dayKey === getGrndDayKey()) {
+          setSelectedTab(draft.dayType);
+          setWorkingSets(draft.workingSets);
+          setEnergyRating(draft.energyRating);
+        }
+      }
+    } catch {
+      // ignore corrupt draft
+    }
   }, []);
+
+  // Save draft whenever in-progress session data changes
+  useEffect(() => {
+    if (selectedTab === 'rest') return;
+    const draft = {
+      dayKey: getGrndDayKey(),
+      dayType: selectedTab,
+      workingSets,
+      energyRating,
+    };
+    localStorage.setItem('grnd_gym_draft', JSON.stringify(draft));
+  }, [workingSets, energyRating, selectedTab]);
 
   useEffect(() => {
     if (!program || selectedTab === 'rest') return;
@@ -132,7 +165,7 @@ export default function Gym() {
     );
 
     const session: GymSession = {
-      date: new Date().toISOString(),
+      date: getGrndDayKey(),
       dayType: selectedTab,
       energyRating,
       exercises: exerciseLogs,
@@ -141,7 +174,8 @@ export default function Gym() {
 
     saveGymSession(session);
     setSessions(getGymSessions());
-    
+    localStorage.removeItem('grnd_gym_draft');
+
     // Reset working sets
     const initial: Record<string, WorkingSet[]> = {};
     exercises.forEach((ex) => {
@@ -155,7 +189,7 @@ export default function Gym() {
     setWorkingSets(initial);
     setEnergyRating(7);
     setExpandedExercise(null);
-    
+
     // Reset injury check-ins
     setInjuryCheckIns({
       'Right Shoulder': { name: 'Right Shoulder', painLevel: null, affectedBySession: false, exercises: [], notes: '' },
@@ -166,7 +200,7 @@ export default function Gym() {
 
   const handleLogRestDay = () => {
     const session: GymSession = {
-      date: new Date().toISOString(),
+      date: getGrndDayKey(),
       dayType: 'rest',
       energyRating: 0,
       exercises: [],
@@ -174,6 +208,7 @@ export default function Gym() {
 
     saveGymSession(session);
     setSessions(getGymSessions());
+    localStorage.removeItem('grnd_gym_draft');
   };
 
   const handleSaveExercise = () => {
