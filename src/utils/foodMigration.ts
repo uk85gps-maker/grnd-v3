@@ -38,8 +38,6 @@ const BACKUP_KEY = 'grnd_checklist_structure_pre_migration_backup';
 const SUPPLEMENT_KEYWORDS = [
   'collagen',
   'iron',
-  'wpi',
-  'creatine',
   'vitamin',
   'omega',
   'magnesium',
@@ -171,7 +169,36 @@ export function resetMigration(): void {
   }
 }
 
+export function migrateWPIToMeals(): void {
+  const FLAG = 'grnd_migration_wpi_to_meals_done';
+  if (localStorage.getItem(FLAG) === 'true') return;
+  try {
+    const raw = localStorage.getItem(FOOD_PLAN_KEY);
+    if (raw) {
+      const plan = JSON.parse(raw) as FoodPlanItem[];
+      let changed = false;
+      const updated = plan.map((item) => {
+        if (
+          item.type === 'supplement' &&
+          /wpi|creatine/i.test(item.name)
+        ) {
+          changed = true;
+          return { ...item, type: 'meal' as const };
+        }
+        return item;
+      });
+      if (changed) {
+        localStorage.setItem(FOOD_PLAN_KEY, JSON.stringify(updated));
+      }
+    }
+  } catch {
+    console.error('GRND: migrateWPIToMeals failed');
+  }
+  localStorage.setItem(FLAG, 'true');
+}
+
 export function runMigrationIfNeeded(): void {
+  migrateWPIToMeals();
   try {
     // One-time v2 reset: Force re-run with corrected keyword logic
     const v2ResetDone = localStorage.getItem('grnd_migration_v2_reset_done');

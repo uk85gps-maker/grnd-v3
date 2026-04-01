@@ -82,7 +82,11 @@ export function loadFoodLog(dateKey?: string): DailyFoodLog {
 
 export function saveFoodLog(log: DailyFoodLog, dateKey?: string): void {
   const key = getFoodLogKey(dateKey);
-  localStorage.setItem(key, JSON.stringify(log));
+  try {
+    localStorage.setItem(key, JSON.stringify(log));
+  } catch (e) {
+    console.error('GRND: failed to save food log', e);
+  }
 }
 
 // Only plan and deviation contribute to totals; skipped and unlogged are zero
