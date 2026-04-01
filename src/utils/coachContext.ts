@@ -922,6 +922,17 @@ export function getCoachContext(): {
     })(),
 
     food: (() => {
+      const supplementPlan = (() => {
+        try {
+          const raw = localStorage.getItem('grnd_food_plan');
+          if (!raw) return [];
+          const plan = JSON.parse(raw) as Array<{ id: string; name: string; type: string }>;
+          return plan.filter((item) => item.type === 'supplement');
+        } catch {
+          return [];
+        }
+      })();
+
       const last7Days: Array<{
         date: string;
         logged: boolean;
@@ -930,6 +941,7 @@ export function getCoachContext(): {
         deviationCount: number;
         skippedCount: number;
         unloggedCount: number;
+        supplementsConfirmed: number;
         dailyTotals: { calories: number; protein: number; carbs: number; fat: number; fibre: number };
       }> = [];
       
@@ -956,6 +968,8 @@ export function getCoachContext(): {
             const deviationCount = log.meals?.filter((m: any) => m.status === 'deviation').length || 0;
             const skippedCount = log.meals?.filter((m: any) => m.status === 'skipped').length || 0;
             const unloggedCount = log.meals?.filter((m: any) => m.status === 'unlogged').length || 0;
+            const supplementsConfirmed = (log.supplements as Array<{ confirmed: boolean }> | undefined)
+              ?.filter((s) => s.confirmed).length ?? 0;
 
             last7Days.push({
               date: dayKey,
@@ -965,6 +979,7 @@ export function getCoachContext(): {
               deviationCount,
               skippedCount,
               unloggedCount,
+              supplementsConfirmed,
               dailyTotals: log.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           } catch {
@@ -977,7 +992,7 @@ export function getCoachContext(): {
               deviationCount: 0,
               skippedCount: 0,
               unloggedCount: 0,
-
+              supplementsConfirmed: 0,
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           }
@@ -1006,7 +1021,7 @@ export function getCoachContext(): {
                 deviationCount: 0,
                 skippedCount: 0,
                 unloggedCount: 0,
-  
+                supplementsConfirmed: 0,
                 dailyTotals,
               });
             } catch {
@@ -1019,7 +1034,7 @@ export function getCoachContext(): {
                 deviationCount: 0,
                 skippedCount: 0,
                 unloggedCount: 0,
-  
+                supplementsConfirmed: 0,
                 dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
               });
             }
@@ -1033,7 +1048,7 @@ export function getCoachContext(): {
               deviationCount: 0,
               skippedCount: 0,
               unloggedCount: 0,
-
+              supplementsConfirmed: 0,
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           }
@@ -1058,9 +1073,32 @@ export function getCoachContext(): {
         proteinPct: targets.protein > 0 ? Math.round((todayData.dailyTotals.protein / targets.protein) * 100) : 0,
       };
       
+      const todaySupplements = (() => {
+        try {
+          const raw = localStorage.getItem(`${STORAGE_KEYS.FOOD_LOG}_${last7Days[0]?.date}`);
+          const loggedSupps: Array<{ id: string; name: string; confirmed: boolean }> = raw
+            ? (JSON.parse(raw).supplements ?? [])
+            : [];
+          const confirmedNames = loggedSupps.filter((s) => s.confirmed).map((s) => s.name);
+          const confirmedIds = new Set(loggedSupps.filter((s) => s.confirmed).map((s) => s.id));
+          const missedNames = supplementPlan
+            .filter((p) => !confirmedIds.has(p.id))
+            .map((p) => p.name);
+          return {
+            totalCount: supplementPlan.length,
+            confirmedCount: confirmedNames.length,
+            confirmedNames,
+            missedNames,
+          };
+        } catch {
+          return { totalCount: supplementPlan.length, confirmedCount: 0, confirmedNames: [], missedNames: supplementPlan.map((p) => p.name) };
+        }
+      })();
+
       return {
         dailyTotals: todayData.dailyTotals,
         vsTargets,
+        supplements: todaySupplements,
         onPlanCount: todayData.onPlanCount,
         deviationCount: todayData.deviationCount,
         skippedCount: todayData.skippedCount,

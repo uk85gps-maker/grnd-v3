@@ -157,6 +157,14 @@ export default function Review() {
       const complianceScore: number | null = systemHealthScore ?? null;
       const bodyWeight: number | null = context.body?.latest?.weight ?? null;
 
+      const supplementCompliance: number | null = (() => {
+        const days = context.food?.last7Days;
+        const totalCount = context.food?.supplements?.totalCount ?? 0;
+        if (!Array.isArray(days) || days.length === 0 || totalCount === 0) return null;
+        const fullDays = days.filter((d: any) => d.supplementsConfirmed >= totalCount).length;
+        return Math.round((fullDays / 7) * 100);
+      })();
+
       addPatternEntry(weekStart, summary, {
         avgCalories,
         avgProtein,
@@ -164,6 +172,7 @@ export default function Review() {
         avgSleepHours,
         complianceScore,
         bodyWeight,
+        supplementCompliance,
       });
 
       setWeeklyReviewStatus('success');

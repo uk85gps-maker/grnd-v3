@@ -8,6 +8,7 @@ export interface PatternEntry {
   avgSleepHours: number | null;
   complianceScore: number | null;
   bodyWeight: number | null;
+  supplementCompliance: number | null;
 }
 
 const STORAGE_KEY = 'grnd_pattern_memory';
@@ -37,6 +38,7 @@ export function addPatternEntry(
     avgSleepHours: number | null;
     complianceScore: number | null;
     bodyWeight: number | null;
+    supplementCompliance: number | null;
   }
 ): void {
   const patterns = getPatternMemory();
@@ -68,6 +70,7 @@ export function formatPatternMemoryForPrompt(): string {
       if (p.avgSleepHours != null) lines.push(`Avg sleep: ${p.avgSleepHours.toFixed(1)}h`);
       if (p.complianceScore != null) lines.push(`System health: ${Math.round(p.complianceScore)}`);
       if (p.bodyWeight != null) lines.push(`Weight: ${p.bodyWeight}kg`);
+      if (p.supplementCompliance != null) lines.push(`Supplement compliance: ${Math.round(p.supplementCompliance)}%`);
       lines.push(p.summary);
       return lines.join('\n');
     })
