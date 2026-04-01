@@ -147,12 +147,12 @@ export default function Coach() {
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, newUserMessage]);
+    const conversationForAPI = formatMessagesForAPI();
     addMessage('user', userMessage);
 
     setIsLoading(true);
 
     try {
-      const conversationForAPI = formatMessagesForAPI();
       const response = await sendMessageToCoach(userMessage, conversationForAPI);
 
       // Add assistant response
