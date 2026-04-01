@@ -60,6 +60,7 @@ export default function Review() {
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
 
   const [specialists, setSpecialists] = useState<SpecialistAction[]>([]);
+  const [tick, setTick] = useState(0);
   const [showSpecialistModal, setShowSpecialistModal] = useState(false);
   const [editingSpecialistIndex, setEditingSpecialistIndex] = useState<number | null>(null);
   const [specialistForm, setSpecialistForm] = useState<SpecialistAction>({
@@ -232,6 +233,16 @@ export default function Review() {
     handleWeeklyReview();
   }, [isSunday, latestStats]);
 
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener('focus', bump);
+    document.addEventListener('visibilitychange', bump);
+    return () => {
+      window.removeEventListener('focus', bump);
+      document.removeEventListener('visibilitychange', bump);
+    };
+  }, []);
+
   const complianceSnapshot = useMemo(() => getComplianceSnapshot(), []);
 
   const meaningScore = useMemo(() => {
@@ -251,7 +262,7 @@ export default function Review() {
     } catch {
       return 0;
     }
-  }, []);
+  }, [tick]);
 
   const systemHealthScore = useMemo(() => {
     const weights = {
@@ -259,8 +270,9 @@ export default function Review() {
       sleep: 0.20,
       gym: 0.20,
       macros: 0.15,
-      body: 0.10,
+      body: 0.05,
       meaning: 0.10,
+      specialists: 0.05,
     };
 
     const statusToScore = (status: string | undefined) => {
@@ -277,6 +289,7 @@ export default function Review() {
     totalScore += statusToScore(complianceSnapshot.macros?.status) * weights.macros;
     totalScore += (latestStats ? 100 : 0) * weights.body;
     totalScore += meaningScore * weights.meaning;
+    totalScore += statusToScore(complianceSnapshot.specialists?.status) * weights.specialists;
 
     return Math.round(totalScore);
   }, [complianceSnapshot, latestStats, meaningScore]);
@@ -318,6 +331,16 @@ export default function Review() {
         status: latestStats ? 'green' : 'grey',
         lastActivity: latestStats ? 'Logged' : 'Not yet tracking',
         built: true,
+      },
+      {
+        name: 'Specialist Actions',
+        status: (complianceSnapshot.specialists?.status as StreamStatus) || 'grey',
+        lastActivity: complianceSnapshot.specialists
+          ? complianceSnapshot.specialists.value === 0
+            ? 'All actions booked'
+            : `${complianceSnapshot.specialists.value} actions overdue`
+          : 'Not yet tracking',
+        built: !!complianceSnapshot.specialists,
       },
     ];
   }, [complianceSnapshot, latestStats, meaningScore]);
