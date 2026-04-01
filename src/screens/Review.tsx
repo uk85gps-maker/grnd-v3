@@ -385,13 +385,9 @@ export default function Review() {
     return total > 0 ? Math.round((progress / total) * 100) : 0;
   }, [latestStats, stageData, gymPerformanceScore]);
 
-  // US Navy formula (male): BF% = 495 / (1.0324 - 0.19077×log10(waist_cm - neck_cm) + 0.15456×log10(height_cm)) - 450
-  // waist and neck are stored in mm → divide by 10 to get cm
-  const calcNavyBodyFat = (waistMm: number, neckMm: number, heightCm = 173): number => {
-    const neckCm = neckMm / 10;
-    const diff = waistMm / 10 - neckCm;
-    if (diff <= 0) return 0;
-    const bf = 495 / (1.0324 - 0.19077 * Math.log10(diff) + 0.15456 * Math.log10(heightCm)) - 450;
+  const calcRFM = (waistMm: number, heightCm = 173): number => {
+    const waistCm = waistMm / 10;
+    const bf = 64 - (20 * (heightCm / waistCm));
     return Math.round(bf * 10) / 10;
   };
 
@@ -399,8 +395,8 @@ export default function Review() {
     if (!newMeasurement.date) return;
 
     let bodyFat = newMeasurement.bodyFat;
-    if (!bodyFat && newMeasurement.waist && newMeasurement.neck) {
-      bodyFat = calcNavyBodyFat(newMeasurement.waist, newMeasurement.neck);
+    if (!bodyFat && newMeasurement.waist) {
+      bodyFat = calcRFM(newMeasurement.waist);
     }
 
     const entry: BodyLogEntry = {
@@ -735,7 +731,7 @@ export default function Review() {
               {latestStats?.bodyFat ? `${latestStats.bodyFat}%` : '—'}
             </div>
             {latestStats?.bodyFat && latestStats?.neck && (
-              <div className="mt-0.5 text-[10px] text-zinc-500">Navy formula</div>
+              <div className="mt-0.5 text-[10px] text-zinc-500">RFM formula</div>
             )}
           </div>
           <div className="rounded-brand bg-card p-3">
@@ -1213,7 +1209,7 @@ export default function Review() {
               </div>
               <div>
                 <label className="mb-1 block text-sm text-text-secondary">
-                  Body Fat (%) {!bodyFatManual && newMeasurement.waist && newMeasurement.neck ? <span className="text-zinc-500">— auto (Navy)</span> : null}
+                  Body Fat (%) {!bodyFatManual && newMeasurement.waist ? <span className="text-zinc-500">— auto (RFM)</span> : null}
                 </label>
                 <input
                   type="number"
@@ -1234,8 +1230,7 @@ export default function Review() {
                     value={newMeasurement.waist || ''}
                     onChange={(e) => {
                       const waist = parseFloat(e.target.value) || undefined;
-                      const neck = newMeasurement.neck;
-                      const bf = !bodyFatManual && waist && neck ? calcNavyBodyFat(waist, neck) : newMeasurement.bodyFat;
+                      const bf = !bodyFatManual && waist ? calcRFM(waist) : newMeasurement.bodyFat;
                       setNewMeasurement({ ...newMeasurement, waist, bodyFat: bf });
                     }}
                     className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
@@ -1248,9 +1243,7 @@ export default function Review() {
                     value={newMeasurement.neck || ''}
                     onChange={(e) => {
                       const neck = parseFloat(e.target.value) || undefined;
-                      const waist = newMeasurement.waist;
-                      const bf = !bodyFatManual && waist && neck ? calcNavyBodyFat(waist, neck) : newMeasurement.bodyFat;
-                      setNewMeasurement({ ...newMeasurement, neck, bodyFat: bf });
+                      setNewMeasurement({ ...newMeasurement, neck });
                     }}
                     className="w-full rounded-brand bg-background px-3 py-2 text-base text-text-primary outline-none"
                   />
