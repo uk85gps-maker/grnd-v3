@@ -312,6 +312,47 @@ export function checkAndAwardMilestones(): void {
   }
 }
 
+// Location Context Function
+export async function getLocationContext(): Promise<{ context: string; locationName: string | null }> {
+  const unknown = { context: 'unknown', locationName: null };
+  try {
+    const raw = localStorage.getItem('grnd_saved_locations');
+    if (!raw) return unknown;
+    const locations = JSON.parse(raw) as Array<{ id: string; name: string; lat: number; lng: number }>;
+    if (!locations || locations.length === 0) return unknown;
+    if (!navigator.geolocation) return unknown;
+
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+    });
+
+    const { latitude, longitude } = position.coords;
+
+    // Haversine formula — returns distance in metres
+    function haversineMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+      const R = 6371000;
+      const toRad = (d: number) => (d * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    for (const loc of locations) {
+      const dist = haversineMetres(latitude, longitude, loc.lat, loc.lng);
+      if (dist <= 500) {
+        return { context: loc.name.toLowerCase(), locationName: loc.name };
+      }
+    }
+    return unknown;
+  } catch {
+    return unknown;
+  }
+}
+
 // Compliance Snapshot Function
 // Returns current compliance status across all data streams
 export function getComplianceSnapshot(): {
@@ -588,6 +629,7 @@ export function getCoachContext(): {
     nonNegotiablesMissed: string[];
     lastCheckin: string;
   };
+  location: { context: string; locationName: string | null };
 } {
   const compliance = getComplianceSnapshot();
   checkAndAwardMilestones();
@@ -1353,6 +1395,19 @@ export function getCoachContext(): {
       
       // Phase detection
       return detectPhaseMode(sleepCompliant, foodLogged, simranCompleted, hygieneCompleted);
+    })(),
+
+    location: (() => {
+      try {
+        const raw = localStorage.getItem('grnd_saved_locations');
+        if (!raw) return { context: 'unknown', locationName: null };
+        const locations = JSON.parse(raw) as Array<{ id: string; name: string; lat: number; lng: number }>;
+        if (!locations || locations.length === 0) return { context: 'unknown', locationName: null };
+        // Return placeholder — actual async resolution happens via getLocationContext()
+        return { context: 'unknown', locationName: null };
+      } catch {
+        return { context: 'unknown', locationName: null };
+      }
     })(),
   };
 }

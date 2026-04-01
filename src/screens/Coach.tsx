@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getPortraitMemory, savePortraitMemory, PortraitMemory } from '@/utils/portraitMemory';
 import { getConversationHistory, addMessage, clearConversationHistory, formatMessagesForAPI, Message } from '@/utils/conversationHistory';
 import { sendMessageToCoach } from '@/utils/coachAPI';
+import { getLocationContext } from '@/utils/coachContext';
 import { LearnMaterial } from '@/utils/learnTypes';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -118,6 +119,21 @@ export default function Coach() {
     modesTagged: [] as string[],
   });
 
+  // Location state
+  const [savedLocations, setSavedLocations] = useState<Array<{ id: string; name: string; lat: number; lng: number }>>(() => {
+    try {
+      const raw = localStorage.getItem('grnd_saved_locations');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  const [showLocations, setShowLocations] = useState(false);
+  const [currentLocationLabel, setCurrentLocationLabel] = useState<string | null>(null);
+  // Location add flow state
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [locationGeoError, setLocationGeoError] = useState<string | null>(null);
+
   useEffect(() => {
     setMessages(getConversationHistory());
     // Load library materials
@@ -128,6 +144,10 @@ export default function Coach() {
         setLearnMaterials(parsed.filter((m) => !m.isArchived));
       } catch { /* empty */ }
     }
+    // Fire-and-forget location ping
+    getLocationContext().then((result) => {
+      setCurrentLocationLabel(result.locationName);
+    }).catch(() => { /* ignore */ });
   }, []);
 
   useEffect(() => {
@@ -298,6 +318,50 @@ export default function Coach() {
 
   const uploadFormValid = uploadForm.fileName && uploadForm.whyUploaded && uploadForm.whatYouWant;
 
+  const saveLocations = (updated: Array<{ id: string; name: string; lat: number; lng: number }>) => {
+    localStorage.setItem('grnd_saved_locations', JSON.stringify(updated));
+    setSavedLocations(updated);
+  };
+
+  const handleDeleteLocation = (id: string) => {
+    saveLocations(savedLocations.filter((l) => l.id !== id));
+  };
+
+  const handleStartAddLocation = () => {
+    setLocationGeoError(null);
+    setNewLocationName('');
+    setPendingCoords(null);
+    setAddingLocation(false);
+    if (!navigator.geolocation) {
+      setLocationGeoError('Geolocation is not supported on this device.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setPendingCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setAddingLocation(true);
+      },
+      () => {
+        setLocationGeoError('Could not get your location. Please allow location access and try again.');
+      },
+      { timeout: 10000 }
+    );
+  };
+
+  const handleConfirmAddLocation = () => {
+    if (!pendingCoords || !newLocationName.trim()) return;
+    const newLoc = {
+      id: Date.now().toString(),
+      name: newLocationName.trim(),
+      lat: pendingCoords.lat,
+      lng: pendingCoords.lng,
+    };
+    saveLocations([...savedLocations, newLoc]);
+    setAddingLocation(false);
+    setNewLocationName('');
+    setPendingCoords(null);
+  };
+
   return (
     <div className="flex h-screen flex-col overflow-hidden pb-20">
       {/* Header */}
@@ -310,6 +374,13 @@ export default function Coach() {
             className="rounded-brand border border-[#d4af37] px-3 py-1 text-sm text-[#d4af37]"
           >
             📚 Library
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowLocations(true)}
+            className="rounded-brand border border-[#d4af37] px-3 py-1 text-sm text-[#d4af37]"
+          >
+            📍{currentLocationLabel ? ` ${currentLocationLabel}` : ''}
           </button>
           <button
             type="button"
@@ -482,6 +553,96 @@ export default function Coach() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Locations Modal */}
+      {showLocations && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50" onClick={() => setShowLocations(false)}>
+          <div className="flex max-h-[80vh] w-full flex-col rounded-t-brand bg-card" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 flex items-center justify-between bg-card px-4 py-4">
+              <h3 className="text-lg font-bold text-text-primary">Saved Locations</h3>
+              <button type="button" onClick={() => setShowLocations(false)} className="min-h-[44px] px-2 text-text-secondary">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              {savedLocations.length === 0 && !addingLocation && (
+                <div className="py-6 text-center text-base text-text-secondary">No saved locations. Add one below.</div>
+              )}
+
+              {savedLocations.map((loc) => (
+                <div key={loc.id} className="mb-2 flex items-center justify-between rounded-brand bg-background px-3 py-3">
+                  <div>
+                    <div className="text-base font-semibold text-text-primary">{loc.name}</div>
+                    <div className="text-sm text-text-secondary">{loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteLocation(loc.id)}
+                    className="ml-4 text-red-400 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+
+              {locationGeoError && (
+                <div className="mt-2 rounded-brand bg-red-500/10 px-3 py-2 text-sm text-red-400">{locationGeoError}</div>
+              )}
+
+              {addingLocation && pendingCoords && (
+                <div className="mt-3 rounded-brand border border-[#2a2a2a] bg-background p-3">
+                  <div className="mb-2 text-sm text-text-secondary">
+                    Location captured: {pendingCoords.lat.toFixed(5)}, {pendingCoords.lng.toFixed(5)}
+                  </div>
+                  <input
+                    type="text"
+                    value={newLocationName}
+                    onChange={(e) => setNewLocationName(e.target.value)}
+                    placeholder="Location name (e.g. Home)"
+                    className="w-full rounded-brand border border-[#2a2a2a] bg-[#1e1e1e] px-3 py-2 text-base text-text-primary outline-none focus:border-[#d4af37]"
+                    autoFocus
+                  />
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setAddingLocation(false); setPendingCoords(null); setNewLocationName(''); }}
+                      className="flex-1 rounded-brand border border-text-secondary py-2 text-sm text-text-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmAddLocation}
+                      disabled={!newLocationName.trim()}
+                      className="flex-1 rounded-brand bg-primary py-2 text-sm font-semibold text-black disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-card px-4 py-4">
+              {!addingLocation && (
+                <button
+                  type="button"
+                  onClick={handleStartAddLocation}
+                  className="w-full min-h-[44px] rounded-brand bg-primary text-sm font-semibold text-black"
+                >
+                  + Add Location
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowLocations(false)}
+                className="mt-2 w-full min-h-[44px] rounded-brand border border-text-secondary py-2 text-sm text-text-secondary"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
