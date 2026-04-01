@@ -4,7 +4,6 @@
 import { detectPhaseMode } from './phaseMode';
 import { getLatestBodyStats, getStageData } from './reviewData';
 import { getGymSessions } from './gymStructure';
-import { getCrossDayFasting } from './foodLog';
 import { getGrndDayKey } from './dayKey';
 
 export const STORAGE_KEYS = {
@@ -931,7 +930,6 @@ export function getCoachContext(): {
         deviationCount: number;
         skippedCount: number;
         unloggedCount: number;
-        fastingHours: number | null;
         dailyTotals: { calories: number; protein: number; carbs: number; fat: number; fibre: number };
       }> = [];
       
@@ -959,15 +957,6 @@ export function getCoachContext(): {
             const skippedCount = log.meals?.filter((m: any) => m.status === 'skipped').length || 0;
             const unloggedCount = log.meals?.filter((m: any) => m.status === 'unlogged').length || 0;
 
-            // Cross-day fasting: gap between last meal of previous day and first of this day
-            let fastingHours: number | null = null;
-            if (i === 0) {
-              const prevDate = new Date(today);
-              prevDate.setDate(today.getDate() - 1);
-              const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
-              fastingHours = getCrossDayFasting(dayKey, prevKey).hours;
-            }
-
             last7Days.push({
               date: dayKey,
               logged: true,
@@ -976,7 +965,6 @@ export function getCoachContext(): {
               deviationCount,
               skippedCount,
               unloggedCount,
-              fastingHours,
               dailyTotals: log.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           } catch {
@@ -989,7 +977,7 @@ export function getCoachContext(): {
               deviationCount: 0,
               skippedCount: 0,
               unloggedCount: 0,
-              fastingHours: null,
+
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           }
@@ -1018,7 +1006,7 @@ export function getCoachContext(): {
                 deviationCount: 0,
                 skippedCount: 0,
                 unloggedCount: 0,
-                fastingHours: null,
+  
                 dailyTotals,
               });
             } catch {
@@ -1031,7 +1019,7 @@ export function getCoachContext(): {
                 deviationCount: 0,
                 skippedCount: 0,
                 unloggedCount: 0,
-                fastingHours: null,
+  
                 dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
               });
             }
@@ -1045,7 +1033,7 @@ export function getCoachContext(): {
               deviationCount: 0,
               skippedCount: 0,
               unloggedCount: 0,
-              fastingHours: null,
+
               dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fibre: 0 },
             });
           }
@@ -1073,7 +1061,6 @@ export function getCoachContext(): {
       return {
         dailyTotals: todayData.dailyTotals,
         vsTargets,
-        fastingHours: todayData.fastingHours,
         onPlanCount: todayData.onPlanCount,
         deviationCount: todayData.deviationCount,
         skippedCount: todayData.skippedCount,

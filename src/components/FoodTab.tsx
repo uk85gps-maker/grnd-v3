@@ -9,7 +9,6 @@ import {
   updateMealFirstLastFlags,
   getCurrentTime,
   estimateMacros,
-  getCrossDayFasting,
   KADA_PARSHAD_MACROS,
   isKadaParshad,
   MealLog,
@@ -45,7 +44,6 @@ export default function FoodTab() {
   const dayKey = useMemo(() => getGrndDayKey(), []);
   const yesterdayKey = useMemo(() => previousDayKey(dayKey), [dayKey]);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [fastingDisplay, setFastingDisplay] = useState('--');
   const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
   const [kadaMealId, setKadaMealId] = useState<string | null>(null);
   const [kadaQty, setKadaQty] = useState(2);
@@ -131,23 +129,6 @@ export default function FoodTab() {
       saveFoodLog(updated, yesterdayKey);
     }
   }, [yesterdayKey]);
-
-  // Live fasting display — ticks every minute while unfasted
-  useEffect(() => {
-    const compute = () => {
-      const { hours, locked } = getCrossDayFasting(dayKey, yesterdayKey);
-      if (hours === null) {
-        setFastingDisplay('--');
-      } else if (locked) {
-        setFastingDisplay(`Fasted ${hours}h`);
-      } else {
-        setFastingDisplay(`Fast... ${hours}h`);
-      }
-    };
-    compute();
-    const interval = setInterval(compute, 60_000);
-    return () => clearInterval(interval);
-  }, [dayKey, yesterdayKey, refreshKey]);
 
   const meals = useMemo(() => {
     return foodPlan
@@ -779,12 +760,6 @@ export default function FoodTab() {
             <div className="text-sm text-text-secondary">PROTEIN</div>
             <div className="mt-1 text-lg font-bold text-primary">
               {Math.round(foodLog.dailyTotals.protein)}g / {targets.protein}g
-            </div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm text-text-secondary">FAST</div>
-            <div className="mt-1 truncate text-lg font-bold text-text-secondary">
-              {fastingDisplay}
             </div>
           </div>
         </div>
